@@ -14,6 +14,9 @@ te24projections = pd.read_csv('../data/2024/te_projections24.csv')
 k24projections = pd.read_csv('../data/2024/k_projections24.csv')
 dst24projections = pd.read_csv('../data/2024/dst_projections24.csv')
 
+adp24 = pd.read_csv('../data/2024/adp24.csv', usecols=['Player', 'AVG'])
+adp24.rename(columns={'AVG': 'ADP'}, inplace=True)
+
 def remove_symbols(df):
     return df.replace([',', '%'], '', regex=True)
 
@@ -89,9 +92,25 @@ wr24full = wr24full.sort_values(by='actual_Rank')
 te24full = te24full.sort_values(by='actual_Rank')
 k24full = k24full.sort_values(by='actual_Rank')
 
+qb24full = pd.merge(qb24full, adp24[['Player', 'ADP']], on='Player', how='left')
+rb24full = pd.merge(rb24full, adp24[['Player', 'ADP']], on='Player', how='left')
+wr24full = pd.merge(wr24full, adp24[['Player', 'ADP']], on='Player', how='left')
+te24full = pd.merge(te24full, adp24[['Player', 'ADP']], on='Player', how='left')
+k24full = pd.merge(k24full, adp24[['Player', 'ADP']], on='Player', how='left')
+dst24full = pd.merge(dst24full, adp24[['Player', 'ADP']], on='Player', how='left')
+
+qb24full['ADP'] = qb24full['ADP'].fillna(0)
+rb24full['ADP'] = rb24full['ADP'].fillna(0)
+wr24full['ADP'] = wr24full['ADP'].fillna(0)
+te24full['ADP'] = te24full['ADP'].fillna(0)
+k24full['ADP'] = k24full['ADP'].fillna(0)
+dst24full['ADP'] = dst24full['ADP'].fillna(0)
+
 qb24full.to_csv('../data/qb24full.csv', index=False)
 rb24full.to_csv('../data/rb24full.csv', index=False)
 wr24full.to_csv('../data/wr24full.csv', index=False)
 te24full.to_csv('../data/te24full.csv', index=False)
 k24full.to_csv('../data/k24full.csv', index=False)
 dst24full.to_csv('../data/dst24full.csv', index=False)
+
+print("Done!")
