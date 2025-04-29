@@ -1,4 +1,4 @@
-"Rank","Player","CMP","ATT","PCT","YDS","Y/A","TD","INT","SACKS","ATT","YDS","TD","FL","G","FPTS","FPTS/G","ROST"
+"Rank","Player","CMP(Passing)","ATT(Passing)","PCT(Passing)","YDS(Passing)","Y/A(Passing)","TD(Passing)","INT","SACKS","ATT(Rushing)","YDS(Rushing)","TD(Rushing)","FL","G","FPTS","FPTS/G","ROST"
 "1","Lamar Jackson (BAL)","316","474","66.7","4,172","8.8","41","4","23","139","915","4","5","17","434.4","25.6","98.9%"
 "2","Josh Allen (BUF)","307","483","63.6","3,731","7.7","28","6","14","102","531","12","2","17","385.1","22.7","99.2%"
 "3","Joe Burrow (CIN)","460","652","70.6","4,918","7.5","43","9","48","42","201","2","5","17","381.9","22.5","95.3%"

@@ -1,5 +1,4 @@
-"Player","Team","REC","YDS","TDS","FL","FPTS"
-" ","",""
+"Player","Team","REC(Recieving)","YDS(Recieving)","TD(Recieving)","FL","FPTS"
 "Travis Kelce","KC","88.9","959.8","7.5","0.8","140.3"
 "Sam LaPorta","DET","86.3","891.3","7.7","0.4","134.6"
 "Mark Andrews","BAL","71.9","869.7","7.9","0.5","133.3"

@@ -1,5 +1,4 @@
-"Player","Team","REC","YDS","TDS","ATT","YDS","TDS","FL","FPTS"
-" ","","",""
+"Player","Team","REC(Recieving)","YDS(Recieving)","TD(Recieving)","ATT(Rushing)","YDS(Rushing)","TD(Rushing)","FL","FPTS"
 "CeeDee Lamb","DAL","116.0","1,488.4","9.7","9.8","68.4","0.8","1.1","216.3"
 "Tyreek Hill","MIA","110.0","1,544.6","9.9","5.2","30.5","0.1","1.0","215.8"
 "Ja'Marr Chase","CIN","106.5","1,354.7","8.9","3.0","12.6","0.1","0.7","189.1"

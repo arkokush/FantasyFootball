@@ -1,4 +1,4 @@
-"Rank","Player","ATT","YDS","Y/A","LG","20+","TD","REC","TGT","YDS","Y/R","TD","FL","G","FPTS","FPTS/G","ROST"
+"Rank","Player","ATT(Rushing)","YDS(Rushing)","Y/A(Rushing)","LG(Rushing)","20+(Rushing)","TD(Rushing)","REC(Recieving)","TGT(Recieving)","YDS(Recieving)","Y/R(Recieving)","TD(Recieving)","FL","G","FPTS","FPTS/G","ROST"
 "1","Saquon Barkley (PHI)","345","2,005","5.8","72","17","13","33","43","278","8.4","2","1","16","322.3","20.1","99.1%"
 "2","Derrick Henry (BAL)","325","1,921","5.9","87","19","16","19","22","193","10.2","2","1","17","317.4","18.7","98.9%"
 "3","Jahmyr Gibbs (DET)","250","1,412","5.6","70","13","16","52","63","517","9.9","4","1","17","310.9","18.3","98.9%"
