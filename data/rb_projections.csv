@@ -1,4 +1,4 @@
-name,team,position,non_ppr,non_ppr_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,sleeper_id
+name,team,position,std,std_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,player_id
 Aaron Jones,MIN,RB,162.0,23,183.0,21,205.0,21,4199
 Alvin Kamara,NO,RB,177.0,19,210.0,13,243.0,9,4035
 Ashton Jeanty,LVR,RB,206.0,7,229.0,7,253.0,5,12527

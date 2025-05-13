@@ -1,4 +1,4 @@
-name,team,position,non_ppr,non_ppr_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,sleeper_id
+name,team,position,std,std_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,player_id
 Cam Little,JAC,K,59.0,11,59.0,11,59.0,11,11786
 Cameron Dicker,LAC,K,69.0,14,69.0,14,69.0,14,8259
 Chad Ryland,ARI,K,65.0,12,65.0,12,65.0,12,10955

@@ -1,4 +1,4 @@
-name,team,position,non_ppr,non_ppr_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,sleeper_id
+name,team,position,std,std_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,player_id
 Brenton Strange,JAC,TE,69.0,27,94.0,27,120.0,26,9480
 Brock Bowers,LVR,TE,141.0,1,191.0,1,242.0,1,11604
 Cade Otton,TB,TE,79.0,23,106.0,23,133.0,22,8111

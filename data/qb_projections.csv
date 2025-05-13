@@ -1,4 +1,4 @@
-name,team,position,non_ppr,non_ppr_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,sleeper_id
+name,team,position,std,std_rank,half_ppr,half_ppr_rank,ppr,ppr_rank,player_id
 Baker Mayfield,TB,QB,308.0,9,308.0,9,308.0,9,4892
 Bo Nix,DEN,QB,303.0,8,303.0,8,303.0,8,11563
 Brock Purdy,SF,QB,296.0,16,296.0,17,296.0,17,8183
