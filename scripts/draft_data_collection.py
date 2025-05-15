@@ -121,12 +121,12 @@ def initialize_df(draft_data, picks_data):
     team_needs, total_needs = get_team_total_needs(draft_data)
     scoring_type = draft_data['metadata']['scoring_type']
 
-    qb_projections = pd.read_csv('../data/qb_projections.csv').sort_values(by=scoring_type)
-    rb_projections = pd.read_csv('../data/rb_projections.csv').sort_values(by=scoring_type)
-    wr_projections = pd.read_csv('../data/wr_projections.csv').sort_values(by=scoring_type)
-    te_projections = pd.read_csv('../data/te_projections.csv').sort_values(by=scoring_type)
-    k_projections = pd.read_csv('../data/k_projections.csv').sort_values(by=scoring_type)
-    dst_projections = pd.read_csv('../data/dst_projections.csv')
+    qb_projections = pd.read_csv('../data/2025/qb_projections.csv').sort_values(by=scoring_type)
+    rb_projections = pd.read_csv('../data/2025/rb_projections.csv').sort_values(by=scoring_type)
+    wr_projections = pd.read_csv('../data/2025/wr_projections.csv').sort_values(by=scoring_type)
+    te_projections = pd.read_csv('../data/2025/te_projections.csv').sort_values(by=scoring_type)
+    k_projections = pd.read_csv('../data/2025/k_projections.csv').sort_values(by=scoring_type)
+    dst_projections = pd.read_csv('../data/2025/dst_projections.csv')
 
     qb_projections['drafted'] = False
     rb_projections['drafted'] = False
@@ -149,7 +149,6 @@ def initialize_df(draft_data, picks_data):
     }
 
     scoring = scoring_map.get(scoring_type, 0)
-    scoring_rank = scoring_type + '_rank'
 
     qb_base = qb_projections.iloc[total_needs['qb_slots']][scoring_type]
     rb_base = rb_projections.iloc[total_needs['qb_slots']][scoring_type]

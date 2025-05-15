@@ -27,7 +27,7 @@ player_data_df = pd.DataFrame.from_dict(player_data, orient='index')
 
 #player_data_df.to_csv('../data/player_data.csv', index=False)
 
-player_data_df = pd.read_csv('../data/player_data.csv')
+player_data_df = pd.read_csv('../data/2025/player_data.csv')
 
 player_mapping = player_data_df[['player_id', 'full_name']]
 
