@@ -1,0 +1,59 @@
+body{
+    background: #525fee;
+    font: normal 16px Arial, Helvetica, sans-serif;
+    line-height: 1.5em;
+    margin: 0;
+}
+
+.container {
+    width: 80%;
+    margin: 0 auto;
+    overflow:hidden;
+}
+
+#showcase{
+    background-image: url("res/main_background.jpg");
+    background-size: cover;
+    height: 175px;
+    position: relative;
+    color: #fff;
+    text-align: center;
+
+
+    h1{
+        position: relative;
+        margin: 0;
+        padding: 10px 0;
+        font-size: 2.5em;
+        line-height: 2em;
+        font-family: 'Team 401';
+    }
+    p{
+        position: absolute;
+        font-size: 1.2em;
+        top: 70%;
+        left:85%
+    }
+}
+#navbar{
+    background: #575757;
+    color: #fff;
+    ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+            display: inline;
+            margin-right: 20px;
+
+            a {
+                color: #fff;
+                text-decoration: none;
+                font-size: 18px;
+                padding-right: 20px;
+            }
+        }
+    }
+}
+

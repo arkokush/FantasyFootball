@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+.env
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# WebStorm/IDEA
+.idea/
+
+# Node (if used)
+node_modules/
+
+# Images, logs, or generated files (if any)
+website/res/main_background.jpg
+*.log
