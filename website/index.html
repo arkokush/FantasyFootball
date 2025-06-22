@@ -13,12 +13,75 @@
   <nav id = "navbar">
     <div class = "container">
       <ul>
-        <li><a href="#home">Home</a></li>
-        <li><a href="#about">About</a></li>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
         <li><a href="https://github.com/arkokush" target="_blank">Github</a></li>
       </ul>
     </div>
   </nav>
+
+  <form id="draft-settings-form" >
+      <ul>
+          <li>
+              <label for="num-teams"># Teams:</label>
+              <input type="number" id="num-teams" name="num-teams" min="2" required><br>
+          </li>
+
+          <li>
+              <label for="num-qbs"># QBs:</label>
+              <input type="number" id="num-qbs" name="num-qbs" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-rbs"># RBs:</label>
+              <input type="number" id="num-rbs" name="num-rbs" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-wrs"># WRs:</label>
+              <input type="number" id="num-wrs" name="num-wrs" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-tes"># TEs:</label>
+              <input type="number" id="num-tes" name="num-tes" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-ks"># Ks:</label>
+              <input type="number" id="num-ks" name="num-ks" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-flex"># FLEX:</label>
+              <input type="number" id="num-flex" name="num-flex" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-dst"># DST:</label>
+              <input type="number" id="num-dst" name="num-dst" min="0" required><br>
+          </li>
+
+          <li>
+              <label for="num-bench"># Bench Players:</label>
+              <input type="number" id="num-bench" name="num-bench" min="0" required><br>
+          </li>
+
+          <li class="scoring-type-row">
+              <label for="scoring-type">Scoring Type:</label>
+              <select id="scoring-type" name="scoring-type" required>
+                  <option value="standard">Standard</option>
+                  <option value="half-ppr">Half-PPR</option>
+                  <option value="ppr">PPR</option>
+              </select>
+              <br>
+              <button type="submit">Submit</button>
+
+          </li>
+
+
+      </ul>
+  </form>
 
 
 </body>

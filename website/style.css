@@ -12,7 +12,7 @@ body{
 }
 
 #showcase{
-    background-image: url("res/main_background.jpg");
+    background-image: url("res/main_header.jpg");
     background-size: cover;
     height: 175px;
     position: relative;
@@ -56,4 +56,76 @@ body{
         }
     }
 }
+
+#draft-settings-form{
+    background: #419313;
+    color: #fff;
+
+    ul{
+        list-style: none;
+        margin: 0;
+        padding: 20px 40px;
+
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 20px;
+
+        .scoring-type-row {
+            margin-left: auto;
+        }
+
+        li {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 0;
+        }
+
+    }
+
+    input[type="number"] {
+        width: 60px;
+        font-size: 15px;
+        padding: 4px 6px;
+        box-sizing: border-box;
+    }
+
+    select {
+        background-color: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 6px;
+        font-size: 15px;
+        box-sizing: border-box;
+    }
+
+   button[type="submit"] {
+        background-color: #2563eb;
+        color: #fff;
+        border: none;
+        padding: 8px 18px;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+
+    }
+
+    button[type="submit"]:hover {
+        background-color: #fff;
+        color: #e11d48; /* A strong red */
+
+        border: none;
+        padding: 8px 18px;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+}
+
+
 
