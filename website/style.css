@@ -187,6 +187,16 @@ body{
     text-align: center;
     font-size: 1.35em;
 
+    /* Add flex styling for input/button row */
+    .assist-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 18px;
+        margin-bottom: 8px;
+    }
+
     label {
         font-size: 1.2em;
         margin-right: 12px;
@@ -200,6 +210,16 @@ body{
         margin-right: 16px;
     }
 
+    input[type="number"] {
+        font-size: 1.1em;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 2px solid #2563eb;
+        width: 70px;
+        margin-right: 8px;
+        margin-left: 0;
+    }
+
     button {
         font-size: 1.1em;
         padding: 10px 24px;
@@ -209,6 +229,7 @@ body{
         border: none;
         cursor: pointer;
         transition: background 0.2s;
+        margin-left: 12px;
     }
 
     button:hover {
@@ -222,6 +243,3 @@ body{
     font-weight: bold;
     font-size: 1.2em;
 }
-
-
-

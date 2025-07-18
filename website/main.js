@@ -17,6 +17,20 @@ function getDraftSettings() {
 
 // --- Player Names ---
 const playerNamesByPos = {};
+
+async function fetchCsvRows(file) {
+    const res = await fetch(`../data/2025/${file}`);
+    const text = await res.text();
+    const [header, ...rows] = text.trim().split('\n');
+    const keys = header.split(',');
+    return rows.map(row => {
+        const vals = row.split(',');
+        const obj = {};
+        keys.forEach((k, i) => obj[k] = vals[i]);
+        return obj;
+    });
+}
+
 async function loadPlayerNames(position) {
     const fileMap = {
         QB: 'qb_projections.csv',
@@ -30,36 +44,21 @@ async function loadPlayerNames(position) {
         const files = ['rb_projections.csv', 'wr_projections.csv', 'te_projections.csv'];
         let names = [];
         for (const file of files) {
-            const res = await fetch(`../data/2025/${file}`);
-            const text = await res.text();
-            const [header, ...rows] = text.trim().split('\n');
-            const keys = header.split(',');
-            const nameIdx = keys.indexOf('name');
-            if (nameIdx !== -1) {
-                names = names.concat(rows.map(row => row.split(',')[nameIdx]).filter(Boolean));
-            }
+            const rows = await fetchCsvRows(file);
+            names = names.concat(rows.map(obj => obj.name).filter(Boolean));
         }
         return [...new Set(names)];
     }
     if (position === 'Bench') {
-        const res = await fetch('../data/2025/projections_full.csv');
-        const text = await res.text();
-        const [header, ...rows] = text.trim().split('\n');
-        const keys = header.split(',');
-        const nameIdx = keys.indexOf('name');
-        if (nameIdx === -1) return [];
-        return rows.map(row => row.split(',')[nameIdx]).filter(Boolean);
+        const rows = await fetchCsvRows('projections_full.csv');
+        return rows.map(obj => obj.name).filter(Boolean);
     }
     const file = fileMap[position];
     if (!file) return [];
-    const res = await fetch(`../data/2025/${file}`);
-    const text = await res.text();
-    const [header, ...rows] = text.trim().split('\n');
-    const keys = header.split(',');
-    const nameIdx = keys.indexOf('name');
-    if (nameIdx === -1) return [];
-    return rows.map(row => row.split(',')[nameIdx]).filter(Boolean);
+    const rows = await fetchCsvRows(file);
+    return rows.map(obj => obj.name).filter(Boolean);
 }
+
 async function preloadAllPlayerNames() {
     const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'FLEX', 'DST', 'Bench'];
     for (const pos of positions) {
@@ -69,17 +68,15 @@ async function preloadAllPlayerNames() {
 
 // --- Unavailable Players Logic ---
 const unavailablePlayers = new Set();
+
 function updateDropdowns() {
     document.querySelectorAll('select').forEach(select => {
         Array.from(select.options).forEach(option => {
-            if (option.value && unavailablePlayers.has(option.value)) {
-                option.disabled = true;
-            } else {
-                option.disabled = false;
-            }
+            option.disabled = option.value && unavailablePlayers.has(option.value);
         });
     });
 }
+
 document.body.addEventListener('change', function(e) {
     if (e.target.tagName === 'SELECT') {
         unavailablePlayers.clear();
@@ -100,21 +97,18 @@ function getScoringType() {
 
 // --- Projected Points Helper ---
 function getProjectedPoints(player, scoringType) {
-    // Use correct CSV fields: std, half_ppr, ppr
-    if (scoringType === 1 && player.ppr !== undefined && !isNaN(player.ppr)) return player.ppr;
-    if (scoringType === 0.5 && player.half_ppr !== undefined && !isNaN(player.half_ppr)) return player.half_ppr;
-    if (player.std !== undefined && !isNaN(player.std)) return player.std;
-    // fallback for legacy fields
-    if (scoringType === 1 && player.projected_points_ppr !== undefined && !isNaN(player.projected_points_ppr)) return player.projected_points_ppr;
-    if (scoringType === 0.5 && player.projected_points_half_ppr !== undefined && !isNaN(player.projected_points_half_ppr)) return player.projected_points_half_ppr;
-    if (player.projected_points !== undefined && !isNaN(player.projected_points)) return player.projected_points;
+    if (scoringType === 1 && !isNaN(player.ppr)) return Number(player.ppr);
+    if (scoringType === 0.5 && !isNaN(player.half_ppr)) return Number(player.half_ppr);
+    if (!isNaN(player.std)) return Number(player.std);
+    if (scoringType === 1 && !isNaN(player.projected_points_ppr)) return Number(player.projected_points_ppr);
+    if (scoringType === 0.5 && !isNaN(player.projected_points_half_ppr)) return Number(player.projected_points_half_ppr);
+    if (!isNaN(player.projected_points)) return Number(player.projected_points);
     return 0;
 }
 
 // --- VOR Calculation ---
 function getBaseValue(position, availablePlayers, numRequired, scoringType) {
-    // availablePlayers[position] should be sorted by projected points DESC for the scoring type
-    const idx = numRequired; // nth+1, zero-based
+    const idx = numRequired;
     if (!availablePlayers[position] || availablePlayers[position].length <= idx) return 0;
     return getProjectedPoints(availablePlayers[position][idx], scoringType);
 }
@@ -151,23 +145,14 @@ async function loadPlayersForPosition(position) {
 
     let players = [];
     for (const file of files) {
-        const res = await fetch(`../data/2025/${file}`);
-        const text = await res.text();
-        const [header, ...rows] = text.trim().split('\n');
-        const keys = header.split(',');
-        for (const row of rows) {
-            const vals = row.split(',');
-            const obj = {};
-            keys.forEach((k, i) => {
-                // Map CSV fields to correct property names and parse as numbers
-                if (k === 'std') obj.std = parseFloat(vals[i]);
-                else if (k === 'half_ppr') obj.half_ppr = parseFloat(vals[i]);
-                else if (k === 'ppr') obj.ppr = parseFloat(vals[i]);
-                else if (k === 'projected_points') obj.projected_points = parseFloat(vals[i]);
-                else if (k === 'projected_points_half_ppr') obj.projected_points_half_ppr = parseFloat(vals[i]);
-                else if (k === 'projected_points_ppr') obj.projected_points_ppr = parseFloat(vals[i]);
-                else obj[k] = vals[i];
-            });
+        const rows = await fetchCsvRows(file);
+        for (const obj of rows) {
+            obj.std = parseFloat(obj.std);
+            obj.half_ppr = parseFloat(obj.half_ppr);
+            obj.ppr = parseFloat(obj.ppr);
+            obj.projected_points = parseFloat(obj.projected_points);
+            obj.projected_points_half_ppr = parseFloat(obj.projected_points_half_ppr);
+            obj.projected_points_ppr = parseFloat(obj.projected_points_ppr);
             players.push(obj);
         }
     }
@@ -176,27 +161,27 @@ async function loadPlayersForPosition(position) {
 }
 
 // --- Available Players Loader ---
-function getAvailablePlayersSync() {
-    // This function is only used after all player data is loaded (after preloadAllPlayerNames)
-    // and after at least one call to getAvailablePlayersAsync has populated the cache.
-    const scoringType = getScoringType();
-    const filterAndSort = (arr) => arr
+function filterAndSortPlayers(arr, scoringType) {
+    return arr
         .filter(p => !unavailablePlayers.has(p.name))
         .sort((a, b) => getProjectedPoints(b, scoringType) - getProjectedPoints(a, scoringType));
+}
+
+function getAvailablePlayersSync() {
+    const scoringType = getScoringType();
     return {
-        qb: playerDataCache.qb ? filterAndSort(playerDataCache.qb) : [],
-        rb: playerDataCache.rb ? filterAndSort(playerDataCache.rb) : [],
-        wr: playerDataCache.wr ? filterAndSort(playerDataCache.wr) : [],
-        te: playerDataCache.te ? filterAndSort(playerDataCache.te) : [],
-        k: playerDataCache.k ? filterAndSort(playerDataCache.k) : [],
+        qb: playerDataCache.qb ? filterAndSortPlayers(playerDataCache.qb, scoringType) : [],
+        rb: playerDataCache.rb ? filterAndSortPlayers(playerDataCache.rb, scoringType) : [],
+        wr: playerDataCache.wr ? filterAndSortPlayers(playerDataCache.wr, scoringType) : [],
+        te: playerDataCache.te ? filterAndSortPlayers(playerDataCache.te, scoringType) : [],
+        k: playerDataCache.k ? filterAndSortPlayers(playerDataCache.k, scoringType) : [],
         flex: (playerDataCache.rb && playerDataCache.wr && playerDataCache.te)
-            ? filterAndSort([...playerDataCache.rb, ...playerDataCache.wr, ...playerDataCache.te])
+            ? filterAndSortPlayers([...playerDataCache.rb, ...playerDataCache.wr, ...playerDataCache.te], scoringType)
             : []
     };
 }
 
 async function getAvailablePlayersAsync() {
-    // Loads and caches all player data if not already loaded
     await Promise.all([
         loadPlayersForPosition('qb'),
         loadPlayersForPosition('rb'),
@@ -205,11 +190,10 @@ async function getAvailablePlayersAsync() {
         loadPlayersForPosition('k'),
         loadPlayersForPosition('dst')
     ]);
-    // flex is just a combination, no need to load separately
     return getAvailablePlayersSync();
 }
 
-// --- CSV/Recommendation Logic (update to async) ---
+// --- CSV/Recommendation Logic ---
 async function createCsvRowAsync(draftState) {
     const availablePlayers = getAvailablePlayersSync();
     const scoringType = draftState.scoring_type;
@@ -249,7 +233,7 @@ async function createCsvRowAsync(draftState) {
     return row.join(',');
 }
 
-// --- UI Creation (update to async) ---
+// --- UI Creation ---
 function createRecommendationBox(numTeams, teamSelectRef) {
     let recBox = document.getElementById('recommendation-box');
     if (!recBox) {
@@ -260,11 +244,13 @@ function createRecommendationBox(numTeams, teamSelectRef) {
     recBox.innerHTML = `
         <label for="assist-team-select"><strong>Choose a team:</strong></label>
         <select id="assist-team-select"></select>
-        <label style="margin-left:12px;" for="assist-round-input">Round:</label>
-        <input id="assist-round-input" type="number" min="1" value="1" style="width:50px;">
-        <label style="margin-left:8px;" for="assist-pick-input">Pick:</label>
-        <input id="assist-pick-input" type="number" min="1" value="1" style="width:50px;">
-        <button id="assist-btn" style="margin-left:12px;">Assist Me</button>
+        <div class="assist-row">
+            <label for="assist-round-input">Round:</label>
+            <input id="assist-round-input" type="number" min="1" value="1">
+            <label for="assist-pick-input">Pick:</label>
+            <input id="assist-pick-input" type="number" min="1" value="1">
+            <button id="assist-btn">Assist Me</button>
+        </div>
         <div id="assist-recommendation" style="margin-top:12px;color:#2563eb;font-weight:bold;"></div>
     `;
     const teamSelect = recBox.querySelector('#assist-team-select');
@@ -277,15 +263,29 @@ function createRecommendationBox(numTeams, teamSelectRef) {
     }
     teamSelectRef.current = teamSelect;
 
+    // --- Set max for round and pick inputs ---
+    const settings = getDraftSettings();
+    const totalRounds =
+        settings.numQBs +
+        settings.numRBs +
+        settings.numWRs +
+        settings.numTEs +
+        settings.numKs +
+        settings.numFlex +
+        settings.numDST +
+        settings.numBench;
+    const roundInput = recBox.querySelector('#assist-round-input');
+    const pickInput = recBox.querySelector('#assist-pick-input');
+    roundInput.max = totalRounds;
+    pickInput.max = totalRounds * settings.numTeams;
+
     recBox.querySelector('#assist-btn').onclick = async function() {
         const selectedTeam = parseInt(teamSelect.value, 10);
-        const round = parseInt(document.getElementById('assist-round-input').value, 10) || 1;
-        const pick_no = parseInt(document.getElementById('assist-pick-input').value, 10) || 1;
+        const round = parseInt(roundInput.value, 10) || 1;
+        const pick_no = parseInt(pickInput.value, 10) || 1;
         const draftState = getCurrentDraftState(selectedTeam, round, pick_no);
-        await getAvailablePlayersAsync(); // Ensure cache is populated
+        await getAvailablePlayersAsync();
         const csvRow = await createCsvRowAsync(draftState);
-
-        // Copy CSV row to clipboard
         try {
             await navigator.clipboard.writeText(csvRow);
             recBox.querySelector('#assist-recommendation').textContent =
