@@ -397,17 +397,6 @@ body {
     font-style: italic;
 }
 
-.team-name-input {
-    width: 100%;
-    font-size: 1.5rem;
-    font-weight: 700;
-    padding: 0.5rem;
-    border: 2px solid var(--accent-teal);
-    border-radius: var(--border-radius-md);
-    background: var(--white);
-    color: var(--neutral-dark);
-}
-
 /* Recommendation Box */
 #recommendation-box {
     background: linear-gradient(135deg, var(--white) 0%, var(--neutral-light) 100%);
@@ -972,6 +961,11 @@ select:focus {
         justify-content: center;
         width: 100%;
     }
+}
+
+/* Draft Assistant specific spacing adjustment */
+#recommendation-box .control-group label[for="assist-team-select"] i {
+    margin-right: 15px; /* Extra space specifically for the Select Team icon */
 }
 
 /* Loading states */
