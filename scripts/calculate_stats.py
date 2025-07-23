@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # Load the data
-df = pd.read_csv('data/2025/all_draft_data.csv')
+df = pd.read_csv('../data/2025/all_draft_data.csv')
 
 # Bounded columns for min-max scaling
 bounded_cols = [
