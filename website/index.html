@@ -2,90 +2,160 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fantasy Football Draft Assist</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Football Draft Assistant</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-  <header id = "showcase">
-      <h1>Fantasy Football Draft Assist</h1>
-        <p>Alpha Release 1.0</p>
-  </header>
-  <nav id = "navbar">
-    <div class = "container">
-      <ul>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="https://github.com/arkokush" target="_blank">Github</a></li>
-      </ul>
+    <div class="app-container">
+        <header class="hero-section">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1><i class="fas fa-football-ball"></i> Fantasy Draft Assistant</h1>
+                    <p class="hero-subtitle">AI-Powered Draft Recommendations</p>
+                    <div class="version-badge">v2.0 Alpha</div>
+                </div>
+                <div class="hero-gradient"></div>
+            </div>
+        </header>
+
+        <nav class="main-nav">
+            <div class="nav-container">
+                <div class="nav-links">
+                    <a href="index.html" class="nav-link active">
+                        <i class="fas fa-home"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="about.html" class="nav-link">
+                        <i class="fas fa-info-circle"></i>
+                        <span>About</span>
+                    </a>
+                    <a href="https://github.com/arkokush" target="_blank" class="nav-link">
+                        <i class="fab fa-github"></i>
+                        <span>GitHub</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <section class="draft-settings-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-cog"></i> Draft Configuration</h2>
+                    <p>Set up your league settings to get started</p>
+                </div>
+
+                <form id="draft-settings-form" class="settings-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="num-teams">
+                                <i class="fas fa-users"></i>
+                                Teams
+                            </label>
+                            <input type="number" id="num-teams" name="num-teams" value="12" min="2" max="20" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-qbs">
+                                <i class="fas fa-user-tie"></i>
+                                QBs
+                            </label>
+                            <input type="number" id="num-qbs" name="num-qbs" value="1" min="0" max="3" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-rbs">
+                                <i class="fas fa-running"></i>
+                                RBs
+                            </label>
+                            <input type="number" id="num-rbs" name="num-rbs" value="2" min="0" max="5" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-wrs">
+                                <i class="fas fa-hands-catching"></i>
+                                WRs
+                            </label>
+                            <input type="number" id="num-wrs" name="num-wrs" value="2" min="0" max="5" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-tes">
+                                <i class="fas fa-user-plus"></i>
+                                TEs
+                            </label>
+                            <input type="number" id="num-tes" name="num-tes" value="1" min="0" max="3" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-ks">
+                                <i class="fas fa-bullseye"></i>
+                                Kickers
+                            </label>
+                            <input type="number" id="num-ks" name="num-ks" value="1" min="0" max="2" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-flex">
+                                <i class="fas fa-exchange-alt"></i>
+                                FLEX
+                            </label>
+                            <input type="number" id="num-flex" name="num-flex" value="1" min="0" max="3" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-dst">
+                                <i class="fas fa-shield-alt"></i>
+                                Defense
+                            </label>
+                            <input type="number" id="num-dst" name="num-dst" value="1" min="0" max="2" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num-bench">
+                                <i class="fas fa-chair"></i>
+                                Bench
+                            </label>
+                            <input type="number" id="num-bench" name="num-bench" value="6" min="0" max="10" required>
+                        </div>
+
+                        <div class="form-group scoring-group">
+                            <label for="scoring-type">
+                                <i class="fas fa-calculator"></i>
+                                Scoring
+                            </label>
+                            <select id="scoring-type" name="scoring-type" required>
+                                <option value="standard">Standard</option>
+                                <option value="half-ppr">Half-PPR</option>
+                                <option value="ppr" selected>PPR</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="start-draft-btn">
+                        <i class="fas fa-play"></i>
+                        <span>Start Draft Assistant</span>
+                    </button>
+                </form>
+            </section>
+
+            <div id="draft-assistant-container">
+                <!-- Recommendation box and teams will be injected here -->
+            </div>
+        </main>
+
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <i class="fas fa-football-ball fa-spin"></i>
+                <p>Loading player data...</p>
+            </div>
+        </div>
     </div>
-  </nav>
 
-  <form id="draft-settings-form" >
-      <ul>
-          <li>
-              <label for="num-teams"># Teams:</label>
-              <input type="number" id="num-teams" name="num-teams" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-qbs"># QBs:</label>
-              <input type="number" id="num-qbs" name="num-qbs" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-rbs"># RBs:</label>
-              <input type="number" id="num-rbs" name="num-rbs" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-wrs"># WRs:</label>
-              <input type="number" id="num-wrs" name="num-wrs" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-tes"># TEs:</label>
-              <input type="number" id="num-tes" name="num-tes" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-ks"># Ks:</label>
-              <input type="number" id="num-ks" name="num-ks" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-flex"># FLEX:</label>
-              <input type="number" id="num-flex" name="num-flex" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-dst"># DST:</label>
-              <input type="number" id="num-dst" name="num-dst" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li>
-              <label for="num-bench"># Bench Players:</label>
-              <input type="number" id="num-bench" name="num-bench" value="1" min="0" max="99" required><br>
-          </li>
-
-          <li class="scoring-type-row">
-              <label for="scoring-type">Scoring Type:</label>
-              <select id="scoring-type" name="scoring-type" required>
-                  <option value="standard">Standard</option>
-                  <option value="half-ppr">Half-PPR</option>
-                  <option value="ppr">PPR</option>
-              </select>
-              <br>
-              <button type="submit">Submit</button>
-
-          </li>
-
-
-      </ul>
-  </form>
-
-  <div id="teams-container"></div>
-
-
-  <script src="main.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>

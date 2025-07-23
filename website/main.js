@@ -175,6 +175,7 @@ function getAvailablePlayersSync() {
         wr: playerDataCache.wr ? filterAndSortPlayers(playerDataCache.wr, scoringType) : [],
         te: playerDataCache.te ? filterAndSortPlayers(playerDataCache.te, scoringType) : [],
         k: playerDataCache.k ? filterAndSortPlayers(playerDataCache.k, scoringType) : [],
+        dst: playerDataCache.dst ? filterAndSortPlayers(playerDataCache.dst, scoringType) : [],
         flex: (playerDataCache.rb && playerDataCache.wr && playerDataCache.te)
             ? filterAndSortPlayers([...playerDataCache.rb, ...playerDataCache.wr, ...playerDataCache.te], scoringType)
             : []
@@ -233,35 +234,240 @@ async function createCsvRowAsync(draftState) {
     return row.join(',');
 }
 
+// --- Model Scaling Helpers ---
+const bounded_cols = [
+    'pick_no','round',
+    'qb_need', 'rb_need', 'wr_need', 'te_need', 'flex_need',
+    'other_qb_need', 'other_rb_need', 'other_wr_need', 'other_te_need', 'other_flex_need',
+    'qb_available', 'rb_available', 'wr_available', 'te_available', 'flex_available'
+];
+const vor_cols = [
+    'qb_vor', 'rb_vor', 'wr_vor', 'te_vor', 'k_vor', 'flex_vor'
+];
+
+// Updated with actual min/max/mean/std from training data
+const minMax = {
+    pick_no: {min: 1, max: 150},
+    round: {min: 1, max: 15},
+    qb_need: {min: 0, max: 1},
+    rb_need: {min: 0, max: 2},
+    wr_need: {min: 0, max: 2},
+    te_need: {min: 0, max: 1},
+    flex_need: {min: 0, max: 2},
+    other_qb_need: {min: 0, max: 9},
+    other_rb_need: {min: 0, max: 18},
+    other_wr_need: {min: 0, max: 18},
+    other_te_need: {min: 0, max: 9},
+    other_flex_need: {min: 0, max: 18},
+    qb_available: {min: 4, max: 22},
+    rb_available: {min: 12, max: 48},
+    wr_available: {min: 23, max: 71},
+    te_available: {min: 17, max: 32},
+    flex_available: {min: 52, max: 151}
+};
+const vorStats = {
+    qb_vor: {mean: 35.0, std: 25.0},
+    rb_vor: {mean: 90.0, std: 45.0},
+    wr_vor: {mean: 80.0, std: 35.0},
+    te_vor: {mean: 45.0, std: 25.0},
+    k_vor: {mean: 17.0, std: 5.0},
+    flex_vor: {mean: 95.0, std: 45.0}
+};
+
+function minMaxScale(val, min, max) {
+    if (max === min) return 0;
+    return (val - min) / (max - min);
+}
+function standardScale(val, mean, std) {
+    if (std === 0) return 0;
+    return (val - mean) / std;
+}
+
+// --- Model Prediction Helper ---
+// Replace this with your actual model API call or JS inference
+async function predictBestPosition(featureVector) {
+    // Example: POST to /predict endpoint
+    // const res = await fetch('/predict', {method: 'POST', body: JSON.stringify({features: featureVector})});
+    // const {best_position} = await res.json();
+    // return best_position;
+
+    // Dummy logic for demo: pick the position with highest VOR
+    const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'FLEX'];
+    let maxIdx = 0, maxVal = featureVector.slice(-6)[0];
+    for (let i = 1; i < 6; ++i) {
+        if (featureVector.slice(-6)[i] > maxVal) {
+            maxVal = featureVector.slice(-6)[i];
+            maxIdx = i;
+        }
+    }
+    return posOrder[maxIdx];
+}
+
+// --- Position Filtering Helper ---
+function getValidPositions(draftState, settings) {
+    const validPositions = [];
+
+    // Check which positions still have open slots
+    if (draftState.qb_need > 0) validPositions.push('QB');
+    if (draftState.rb_need > 0) validPositions.push('RB');
+    if (draftState.wr_need > 0) validPositions.push('WR');
+    if (draftState.te_need > 0) validPositions.push('TE');
+    if (draftState.k_need > 0) validPositions.push('K');
+    if (draftState.dst_need > 0) validPositions.push('DST');
+
+    // FLEX is valid if any RB/WR/TE slots are open
+    if (draftState.rb_need > 0 || draftState.wr_need > 0 || draftState.te_need > 0 ||
+        draftState.flex_need > 0) {
+        validPositions.push('FLEX');
+    }
+
+    // Always allow bench picks if there are bench slots
+    const filledPositions = (settings.numQBs - draftState.qb_need) +
+                           (settings.numRBs - draftState.rb_need) +
+                           (settings.numWRs - draftState.wr_need) +
+                           (settings.numTEs - draftState.te_need) +
+                           (settings.numKs - draftState.k_need) +
+                           (settings.numDST - draftState.dst_need) +
+                           (settings.numFlex - draftState.flex_need);
+    const totalSlots = settings.numQBs + settings.numRBs + settings.numWRs +
+                      settings.numTEs + settings.numKs + settings.numDST +
+                      settings.numFlex + settings.numBench;
+
+    if (filledPositions < totalSlots) {
+        // Add all positions for bench consideration
+        ['QB', 'RB', 'WR', 'TE', 'K', 'DST'].forEach(pos => {
+            if (!validPositions.includes(pos)) validPositions.push(pos);
+        });
+    }
+
+    return validPositions;
+}
+
+// --- Enhanced Model Prediction Helper ---
+async function predictBestPositionWithFilter(featureVector, draftState, settings) {
+    // Get model prediction
+    let predictedPosition = await predictBestPosition(featureVector);
+
+    // Get valid positions
+    const validPositions = getValidPositions(draftState, settings);
+
+    // If predicted position is valid, use it
+    if (validPositions.includes(predictedPosition)) {
+        return predictedPosition;
+    }
+
+    // Otherwise, find the best valid position by VOR
+    const availablePlayers = getAvailablePlayersSync();
+    const scoringType = draftState.scoring_type;
+
+    let bestPosition = validPositions[0]; // fallback
+    let bestVOR = -Infinity;
+
+    for (const position of validPositions) {
+        const posKey = position.toLowerCase();
+        let vor = 0;
+
+        if (position === 'FLEX') {
+            vor = getHighestVOR('flex', availablePlayers, settings.numFlex, scoringType);
+        } else {
+            vor = getHighestVOR(posKey, availablePlayers, settings[`num${position}s`] || 1, scoringType);
+        }
+
+        if (vor > bestVOR) {
+            bestVOR = vor;
+            bestPosition = position;
+        }
+    }
+
+    return bestPosition;
+}
+
+// --- Player Recommendation Helper ---
+function getBestPlayerAtPosition(position, scoringType) {
+    const availablePlayers = getAvailablePlayersSync();
+    let players = [];
+
+    if (position === 'FLEX') {
+        // For FLEX, consider RB, WR, and TE players
+        players = availablePlayers.flex;
+    } else {
+        const posKey = position.toLowerCase();
+        players = availablePlayers[posKey] || [];
+    }
+
+    if (players.length === 0) return null;
+
+    // Return the highest projected player (already sorted by getAvailablePlayersSync)
+    return players[0];
+}
+
+// --- Round Check Helpers ---
+function isSecondToLastRound(round, settings) {
+    const totalRounds = settings.numQBs + settings.numRBs + settings.numWRs +
+                       settings.numTEs + settings.numKs + settings.numFlex +
+                       settings.numDST + settings.numBench;
+    return round === totalRounds - 1;
+}
+
+function isLastRound(round, settings) {
+    const totalRounds = settings.numQBs + settings.numRBs + settings.numWRs +
+                       settings.numTEs + settings.numKs + settings.numFlex +
+                       settings.numDST + settings.numBench;
+    return round === totalRounds;
+}
+
 // --- UI Creation ---
 function createRecommendationBox(numTeams, teamSelectRef) {
+    const draftAssistantContainer = document.getElementById('draft-assistant-container');
     let recBox = document.getElementById('recommendation-box');
     if (!recBox) {
         recBox = document.createElement('div');
         recBox.id = 'recommendation-box';
-        document.body.insertBefore(recBox, document.getElementById('teams-container'));
+        recBox.style.opacity = '0';
+        recBox.style.transform = 'translateY(20px)';
+        draftAssistantContainer.appendChild(recBox); // Append to the stable container
+
+        // Animate in
+        setTimeout(() => {
+            recBox.style.transition = 'all 0.5s ease-out';
+            recBox.style.opacity = '1';
+            recBox.style.transform = 'translateY(0)';
+        }, 200);
     }
+
     recBox.innerHTML = `
-        <label for="assist-team-select"><strong>Choose a team:</strong></label>
-        <select id="assist-team-select"></select>
-        <div class="assist-row">
-            <label for="assist-round-input">Round:</label>
-            <input id="assist-round-input" type="number" min="1" value="1">
-            <label for="assist-pick-input">Pick:</label>
-            <input id="assist-pick-input" type="number" min="1" value="1">
-            <button id="assist-btn">Assist Me</button>
+        <div class="recommendation-header">
+            <h3><i class="fas fa-magic"></i> AI Draft Assistant</h3>
+            <p>Get intelligent position recommendations based on your current draft state</p>
         </div>
-        <div id="assist-recommendation" style="margin-top:12px;color:#2563eb;font-weight:bold;"></div>
+        
+        <div class="recommendation-controls">
+            <div class="control-group">
+                <label for="assist-team-select">
+                    <i class="fas fa-users"></i>
+                    Select Team
+                </label>
+                <select id="assist-team-select"></select>
+            </div>
+            
+            <div class="assist-row">
+                <div class="control-group">
+                    <label for="assist-round-input">Round</label>
+                    <input id="assist-round-input" type="number" min="1" value="1">
+                </div>
+                <div class="control-group">
+                    <label for="assist-pick-input">Pick</label>
+                    <input id="assist-pick-input" type="number" min="1" value="1">
+                </div>
+                <button id="assist-btn" class="assist-button">
+                    <i class="fas fa-brain"></i>
+                    <span>Get Recommendation</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="assist-recommendation"></div>
     `;
-    const teamSelect = recBox.querySelector('#assist-team-select');
-    teamSelect.innerHTML = '';
-    for (let t = 1; t <= numTeams; t++) {
-        const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = `Team ${t}`;
-        teamSelect.appendChild(opt);
-    }
-    teamSelectRef.current = teamSelect;
 
     // --- Set max for round and pick inputs ---
     const settings = getDraftSettings();
@@ -279,20 +485,153 @@ function createRecommendationBox(numTeams, teamSelectRef) {
     roundInput.max = totalRounds;
     pickInput.max = totalRounds * settings.numTeams;
 
+    const teamSelect = recBox.querySelector('#assist-team-select');
+    teamSelect.innerHTML = '';
+    for (let t = 1; t <= numTeams; t++) {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = `Team ${t}`;
+        teamSelect.appendChild(opt);
+    }
+    teamSelectRef.current = teamSelect;
+
     recBox.querySelector('#assist-btn').onclick = async function() {
-        const selectedTeam = parseInt(teamSelect.value, 10);
-        const round = parseInt(roundInput.value, 10) || 1;
-        const pick_no = parseInt(pickInput.value, 10) || 1;
-        const draftState = getCurrentDraftState(selectedTeam, round, pick_no);
-        await getAvailablePlayersAsync();
-        const csvRow = await createCsvRowAsync(draftState);
+        // Add loading state to button
+        this.classList.add('loading');
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Analyzing...</span>';
+
         try {
-            await navigator.clipboard.writeText(csvRow);
-            recBox.querySelector('#assist-recommendation').textContent =
-                `CSV copied to clipboard for Team ${selectedTeam}, Round ${round}, Pick ${pick_no}.`;
-        } catch (err) {
-            recBox.querySelector('#assist-recommendation').textContent =
-                `Failed to copy CSV to clipboard.`;
+            const selectedTeam = parseInt(teamSelect.value, 10);
+            const round = parseInt(roundInput.value, 10) || 1;
+            const pick_no = parseInt(pickInput.value, 10) || 1;
+            const draftState = getCurrentDraftState(selectedTeam, round, pick_no);
+            await getAvailablePlayersAsync();
+
+            const settings = getDraftSettings();
+            const scoringType = draftState.scoring_type;
+
+            let recommendedPosition;
+            let recommendedPlayer;
+            let reasonText = "";
+
+            // Rule 1: If it's the 2nd to last round, always recommend best kicker
+            if (isSecondToLastRound(round, settings)) {
+                recommendedPosition = 'K';
+                recommendedPlayer = getBestPlayerAtPosition('K', scoringType);
+                reasonText = " (2nd to last round - drafting best kicker)";
+            }
+            // Rule 2: If it's the last round, always recommend best DST
+            else if (isLastRound(round, settings)) {
+                recommendedPosition = 'DST';
+                recommendedPlayer = getBestPlayerAtPosition('DST', scoringType);
+                reasonText = " (last round - drafting best defense)";
+            }
+            // Otherwise, use the model to predict best position
+            else {
+                const availablePlayers = getAvailablePlayersSync();
+
+                // Calculate VORs
+                const qb_vor = getHighestVOR('qb', availablePlayers, settings.numQBs, scoringType);
+                const rb_vor = getHighestVOR('rb', availablePlayers, settings.numRBs, scoringType);
+                const wr_vor = getHighestVOR('wr', availablePlayers, settings.numWRs, scoringType);
+                const te_vor = getHighestVOR('te', availablePlayers, settings.numTEs, scoringType);
+                const k_vor = getHighestVOR('k', availablePlayers, settings.numKs, scoringType);
+                const flex_vor = getHighestVOR('flex', availablePlayers, settings.numFlex, scoringType);
+
+                // Min-max scale bounded cols
+                const boundedScaled = bounded_cols.map(col => {
+                    const val = draftState[col];
+                    const {min, max} = minMax[col];
+                    return minMaxScale(val, min, max);
+                });
+                // Standard scale VORs
+                const vorVals = [qb_vor, rb_vor, wr_vor, te_vor, k_vor, flex_vor];
+                const vorScaled = vor_cols.map((col, i) => {
+                    const {mean, std} = vorStats[col];
+                    return standardScale(vorVals[i], mean, std);
+                });
+
+                const featureVector = [...boundedScaled, ...vorScaled];
+
+                // Predict best position using the enhanced model with filtering
+                recommendedPosition = await predictBestPositionWithFilter(featureVector, draftState, settings);
+                recommendedPlayer = getBestPlayerAtPosition(recommendedPosition, scoringType);
+                reasonText = " (model prediction)";
+            }
+
+            // Display the recommendation with enhanced styling
+            const recDiv = recBox.querySelector('#assist-recommendation');
+            if (recommendedPlayer) {
+                const projectedPoints = getProjectedPoints(recommendedPlayer, scoringType).toFixed(1);
+                recDiv.innerHTML = `
+                    <div class="recommendation-result success">
+                        <div class="result-header">
+                            <i class="fas fa-lightbulb"></i>
+                            <h4>Recommendation Ready</h4>
+                        </div>
+                        <div class="result-content">
+                            <div class="position-recommendation">
+                                <span class="label">Recommended Position:</span>
+                                <span class="value position-${recommendedPosition.toLowerCase()}">${recommendedPosition}</span>
+                                <span class="reason">${reasonText}</span>
+                            </div>
+                            <div class="player-recommendation">
+                                <span class="label">Best Available Player:</span>
+                                <span class="value player-name">${recommendedPlayer.name}</span>
+                            </div>
+                            <div class="points-projection">
+                                <span class="label">Projected Points:</span>
+                                <span class="value points">${projectedPoints}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                recDiv.innerHTML = `
+                    <div class="recommendation-result warning">
+                        <div class="result-header">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h4>No Players Available</h4>
+                        </div>
+                        <div class="result-content">
+                            <div class="position-recommendation">
+                                <span class="label">Recommended Position:</span>
+                                <span class="value">${recommendedPosition}</span>
+                                <span class="reason">${reasonText}</span>
+                            </div>
+                            <p>No available players found at this position.</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Animate the recommendation
+            recDiv.style.opacity = '0';
+            recDiv.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                recDiv.style.transition = 'all 0.3s ease-out';
+                recDiv.style.opacity = '1';
+                recDiv.style.transform = 'translateY(0)';
+            }, 100);
+
+        } catch (error) {
+            console.error('Error getting recommendation:', error);
+            const recDiv = recBox.querySelector('#assist-recommendation');
+            recDiv.innerHTML = `
+                <div class="recommendation-result error">
+                    <div class="result-header">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h4>Error</h4>
+                    </div>
+                    <div class="result-content">
+                        <p>Unable to get recommendation. Please try again.</p>
+                    </div>
+                </div>
+            `;
+        } finally {
+            // Reset button state
+            this.classList.remove('loading');
+            this.innerHTML = '<i class="fas fa-brain"></i><span>Get Recommendation</span>';
         }
     };
 }
@@ -372,11 +711,13 @@ function getCurrentDraftState(selectedTeam, round, pick_no) {
 
 // --- Team UI ---
 function createTeamsContainer() {
+    const draftAssistantContainer = document.getElementById('draft-assistant-container');
     let teamsContainer = document.getElementById('teams-container');
     if (!teamsContainer) {
         teamsContainer = document.createElement('div');
         teamsContainer.id = 'teams-container';
-        document.body.appendChild(teamsContainer);
+        teamsContainer.className = 'teams-section'; // Ensure class is set
+        draftAssistantContainer.appendChild(teamsContainer); // Append to the stable container
     }
     teamsContainer.innerHTML = '';
     return teamsContainer;
@@ -440,11 +781,326 @@ function createTeamBoxes(settings, teamsContainer, teamSelect) {
 // --- Main Form Handler ---
 document.getElementById('draft-settings-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    document.getElementById('draft-settings-form').style.display = 'none';
-    await preloadAllPlayerNames();
+    showLoadingState();
+    this.classList.add('submitted');
+
     const settings = getDraftSettings();
     const teamSelectRef = { current: null };
-    createRecommendationBox(settings.numTeams, teamSelectRef);
-    const teamsContainer = createTeamsContainer();
-    createTeamBoxes(settings, teamsContainer, teamSelectRef.current);
+    const draftAssistantContainer = document.getElementById('draft-assistant-container');
+    draftAssistantContainer.innerHTML = ''; // Clear previous content
+
+    // Always create the UI structure first
+    try {
+        createRecommendationBox(settings.numTeams, teamSelectRef);
+        const teamsContainer = createTeamsContainer();
+
+        // First preload player names to ensure dropdowns have data
+        await preloadAllPlayerNames();
+
+        // Create team boxes only once, after player data is loaded
+        createTeamBoxes(settings, teamsContainer, teamSelectRef.current);
+        animateTeamBoxes();
+
+        showNotification('Draft setup complete! Player data loaded.', 'success');
+    } catch (error) {
+        console.error('Error during draft setup:', error);
+        hideLoadingState();
+        showNotification('An error occurred during setup. Please try again.', 'error');
+        this.style.display = 'block';
+        this.classList.remove('submitted');
+        return; // Stop execution
+    } finally {
+        // Hide form and loading state
+        setTimeout(() => {
+            this.style.display = 'none';
+        }, 500);
+        hideLoadingState();
+    }
 });
+
+// --- Enhanced UI Functions ---
+function showLoadingState() {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.add('show');
+}
+
+function hideLoadingState() {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.remove('show');
+}
+
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas ${getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('notification-exit');
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+
+    // Close button functionality
+    notification.querySelector('.notification-close').addEventListener('click', () => {
+        notification.classList.add('notification-exit');
+        setTimeout(() => notification.remove(), 300);
+    });
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    return icons[type] || icons.info;
+}
+
+function animateTeamBoxes() {
+    const teamBoxes = document.querySelectorAll('.team-box');
+    teamBoxes.forEach((box, index) => {
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(30px)';
+
+        setTimeout(() => {
+            box.style.transition = 'all 0.5s ease-out';
+            box.style.opacity = '1';
+            box.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+}
+
+// --- Enhanced Recommendation Box Creation ---
+function createRecommendationBox(numTeams, teamSelectRef) {
+    const draftAssistantContainer = document.getElementById('draft-assistant-container');
+    let recBox = document.getElementById('recommendation-box');
+    if (!recBox) {
+        recBox = document.createElement('div');
+        recBox.id = 'recommendation-box';
+        recBox.style.opacity = '0';
+        recBox.style.transform = 'translateY(20px)';
+        draftAssistantContainer.appendChild(recBox); // Append to the stable container
+
+        // Animate in
+        setTimeout(() => {
+            recBox.style.transition = 'all 0.5s ease-out';
+            recBox.style.opacity = '1';
+            recBox.style.transform = 'translateY(0)';
+        }, 200);
+    }
+
+    recBox.innerHTML = `
+        <div class="recommendation-header">
+            <h3><i class="fas fa-magic"></i> AI Draft Assistant</h3>
+            <p>Get intelligent position recommendations based on your current draft state</p>
+        </div>
+        
+        <div class="recommendation-controls">
+            <div class="control-group">
+                <label for="assist-team-select">
+                    <i class="fas fa-users"></i>
+                    Select Team
+                </label>
+                <select id="assist-team-select"></select>
+            </div>
+            
+            <div class="assist-row">
+                <div class="control-group">
+                    <label for="assist-round-input">Round</label>
+                    <input id="assist-round-input" type="number" min="1" value="1">
+                </div>
+                <div class="control-group">
+                    <label for="assist-pick-input">Pick</label>
+                    <input id="assist-pick-input" type="number" min="1" value="1">
+                </div>
+                <button id="assist-btn" class="assist-button">
+                    <i class="fas fa-brain"></i>
+                    <span>Get Recommendation</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="assist-recommendation"></div>
+    `;
+
+    // --- Set max for round and pick inputs ---
+    const settings = getDraftSettings();
+    const totalRounds =
+        settings.numQBs +
+        settings.numRBs +
+        settings.numWRs +
+        settings.numTEs +
+        settings.numKs +
+        settings.numFlex +
+        settings.numDST +
+        settings.numBench;
+    const roundInput = recBox.querySelector('#assist-round-input');
+    const pickInput = recBox.querySelector('#assist-pick-input');
+    roundInput.max = totalRounds;
+    pickInput.max = totalRounds * settings.numTeams;
+
+    const teamSelect = recBox.querySelector('#assist-team-select');
+    teamSelect.innerHTML = '';
+    for (let t = 1; t <= numTeams; t++) {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = `Team ${t}`;
+        teamSelect.appendChild(opt);
+    }
+    teamSelectRef.current = teamSelect;
+
+    recBox.querySelector('#assist-btn').onclick = async function() {
+        // Add loading state to button
+        this.classList.add('loading');
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Analyzing...</span>';
+
+        try {
+            const selectedTeam = parseInt(teamSelect.value, 10);
+            const round = parseInt(roundInput.value, 10) || 1;
+            const pick_no = parseInt(pickInput.value, 10) || 1;
+            const draftState = getCurrentDraftState(selectedTeam, round, pick_no);
+            await getAvailablePlayersAsync();
+
+            const settings = getDraftSettings();
+            const scoringType = draftState.scoring_type;
+
+            let recommendedPosition;
+            let recommendedPlayer;
+            let reasonText = "";
+
+            // Rule 1: If it's the 2nd to last round, always recommend best kicker
+            if (isSecondToLastRound(round, settings)) {
+                recommendedPosition = 'K';
+                recommendedPlayer = getBestPlayerAtPosition('K', scoringType);
+                reasonText = " (2nd to last round - drafting best kicker)";
+            }
+            // Rule 2: If it's the last round, always recommend best DST
+            else if (isLastRound(round, settings)) {
+                recommendedPosition = 'DST';
+                recommendedPlayer = getBestPlayerAtPosition('DST', scoringType);
+                reasonText = " (last round - drafting best defense)";
+            }
+            // Otherwise, use the model to predict best position
+            else {
+                const availablePlayers = getAvailablePlayersSync();
+
+                // Calculate VORs
+                const qb_vor = getHighestVOR('qb', availablePlayers, settings.numQBs, scoringType);
+                const rb_vor = getHighestVOR('rb', availablePlayers, settings.numRBs, scoringType);
+                const wr_vor = getHighestVOR('wr', availablePlayers, settings.numWRs, scoringType);
+                const te_vor = getHighestVOR('te', availablePlayers, settings.numTEs, scoringType);
+                const k_vor = getHighestVOR('k', availablePlayers, settings.numKs, scoringType);
+                const flex_vor = getHighestVOR('flex', availablePlayers, settings.numFlex, scoringType);
+
+                // Min-max scale bounded cols
+                const boundedScaled = bounded_cols.map(col => {
+                    const val = draftState[col];
+                    const {min, max} = minMax[col];
+                    return minMaxScale(val, min, max);
+                });
+                // Standard scale VORs
+                const vorVals = [qb_vor, rb_vor, wr_vor, te_vor, k_vor, flex_vor];
+                const vorScaled = vor_cols.map((col, i) => {
+                    const {mean, std} = vorStats[col];
+                    return standardScale(vorVals[i], mean, std);
+                });
+
+                const featureVector = [...boundedScaled, ...vorScaled];
+
+                // Predict best position using the enhanced model with filtering
+                recommendedPosition = await predictBestPositionWithFilter(featureVector, draftState, settings);
+                recommendedPlayer = getBestPlayerAtPosition(recommendedPosition, scoringType);
+                reasonText = " (model prediction)";
+            }
+
+            // Display the recommendation with enhanced styling
+            const recDiv = recBox.querySelector('#assist-recommendation');
+            if (recommendedPlayer) {
+                const projectedPoints = getProjectedPoints(recommendedPlayer, scoringType).toFixed(1);
+                recDiv.innerHTML = `
+                    <div class="recommendation-result success">
+                        <div class="result-header">
+                            <i class="fas fa-lightbulb"></i>
+                            <h4>Recommendation Ready</h4>
+                        </div>
+                        <div class="result-content">
+                            <div class="position-recommendation">
+                                <span class="label">Recommended Position:</span>
+                                <span class="value position-${recommendedPosition.toLowerCase()}">${recommendedPosition}</span>
+                                <span class="reason">${reasonText}</span>
+                            </div>
+                            <div class="player-recommendation">
+                                <span class="label">Best Available Player:</span>
+                                <span class="value player-name">${recommendedPlayer.name}</span>
+                            </div>
+                            <div class="points-projection">
+                                <span class="label">Projected Points:</span>
+                                <span class="value points">${projectedPoints}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                recDiv.innerHTML = `
+                    <div class="recommendation-result warning">
+                        <div class="result-header">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h4>No Players Available</h4>
+                        </div>
+                        <div class="result-content">
+                            <div class="position-recommendation">
+                                <span class="label">Recommended Position:</span>
+                                <span class="value">${recommendedPosition}</span>
+                                <span class="reason">${reasonText}</span>
+                            </div>
+                            <p>No available players found at this position.</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Animate the recommendation
+            recDiv.style.opacity = '0';
+            recDiv.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                recDiv.style.transition = 'all 0.3s ease-out';
+                recDiv.style.opacity = '1';
+                recDiv.style.transform = 'translateY(0)';
+            }, 100);
+
+        } catch (error) {
+            console.error('Error getting recommendation:', error);
+            const recDiv = recBox.querySelector('#assist-recommendation');
+            recDiv.innerHTML = `
+                <div class="recommendation-result error">
+                    <div class="result-header">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h4>Error</h4>
+                    </div>
+                    <div class="result-content">
+                        <p>Unable to get recommendation. Please try again.</p>
+                    </div>
+                </div>
+            `;
+        } finally {
+            // Reset button state
+            this.classList.remove('loading');
+            this.innerHTML = '<i class="fas fa-brain"></i><span>Get Recommendation</span>';
+        }
+    };
+}
