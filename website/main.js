@@ -68,6 +68,7 @@ async function preloadAllPlayerNames() {
 
 // --- Unavailable Players Logic ---
 const unavailablePlayers = new Set();
+const draftedPlayersWithTeam = new Map(); // Maps player name to team number
 
 function updateDropdowns() {
     document.querySelectorAll('select').forEach(select => {
@@ -75,17 +76,212 @@ function updateDropdowns() {
             option.disabled = option.value && unavailablePlayers.has(option.value);
         });
     });
+
+    // Update draft board if it exists
+    updateDraftBoard();
+
+    // Also update draft status in player rankings table
+    updatePlayerRankingDraftStatus();
+}
+
+// Function to update draft status in player rankings table
+function updatePlayerRankingDraftStatus() {
+    const rankingTableBody = document.getElementById('ranking-table-body');
+    if (!rankingTableBody) return; // Exit if rankings table doesn't exist
+
+    // Get all player rows in the table
+    const playerRows = rankingTableBody.querySelectorAll('tr');
+
+    playerRows.forEach(row => {
+        const playerName = row.querySelector('td:nth-child(2)')?.textContent;
+        const draftStatusCell = row.querySelector('td:nth-child(8)'); // 8th column is Draft Status
+
+        if (playerName && draftStatusCell) {
+            if (draftedPlayersWithTeam.has(playerName)) {
+                const teamNumber = draftedPlayersWithTeam.get(playerName);
+                // Get team name from team boxes
+                let teamName = `Team ${teamNumber}`;
+                const teamBoxes = document.querySelectorAll('.team-box');
+                if (teamBoxes[teamNumber - 1]) {
+                    const teamNameEl = teamBoxes[teamNumber - 1].querySelector('h3');
+                    if (teamNameEl) {
+                        teamName = teamNameEl.textContent;
+                    }
+                }
+                draftStatusCell.textContent = `Drafted by ${teamName}`;
+                draftStatusCell.classList.add('drafted');
+            } else {
+                draftStatusCell.textContent = 'Available';
+                draftStatusCell.classList.remove('drafted');
+            }
+        }
+    });
 }
 
 document.body.addEventListener('change', function(e) {
     if (e.target.tagName === 'SELECT') {
-        unavailablePlayers.clear();
-        document.querySelectorAll('select').forEach(select => {
-            if (select.value) unavailablePlayers.add(select.value);
-        });
+        const previousValue = e.target.dataset.previousValue;
+        const currentValue = e.target.value;
+
+        // Get the current selection name (team and position)
+        const selectName = e.target.name;
+        const teamNumberMatch = selectName.match(/team(\d+)-/);
+
+        // If there was a previous selection, remove it from unavailable players
+        if (previousValue) {
+            // We need to check if this player is still selected in any other dropdown
+            let stillSelected = false;
+            document.querySelectorAll('select').forEach(select => {
+                if (select !== e.target && select.value === previousValue) {
+                    stillSelected = true;
+                }
+            });
+
+            if (!stillSelected) {
+                unavailablePlayers.delete(previousValue);
+                draftedPlayersWithTeam.delete(previousValue);
+            }
+        }
+
+        // Add the new selection to unavailable players
+        if (currentValue && !previousValue) {
+            unavailablePlayers.add(currentValue);
+            if (teamNumberMatch && teamNumberMatch[1]) {
+                const teamNumber = parseInt(teamNumberMatch[1], 10);
+                draftedPlayersWithTeam.set(currentValue, teamNumber);
+            }
+        } else if (currentValue && previousValue !== currentValue) {
+            unavailablePlayers.add(currentValue);
+            if (teamNumberMatch && teamNumberMatch[1]) {
+                const teamNumber = parseInt(teamNumberMatch[1], 10);
+                draftedPlayersWithTeam.set(currentValue, teamNumber);
+            }
+        }
+
+        // Store current value for future reference
+        e.target.dataset.previousValue = currentValue;
+
         updateDropdowns();
     }
 });
+
+// --- Draft Board Logic ---
+function updateDraftBoard() {
+    // Check if draft board exists, create it if not
+    let draftBoard = document.getElementById('draft-board');
+    if (!draftBoard) {
+        // Create draft board container
+        const draftAssistantContainer = document.getElementById('draft-assistant-container');
+        draftBoard = document.createElement('div');
+        draftBoard.id = 'draft-board';
+        draftBoard.className = 'draft-board-section';
+        draftBoard.innerHTML = `
+            <h3><i class="fas fa-clipboard-list"></i> Draft Board</h3>
+            <div class="draft-board-container">
+                <table class="draft-table">
+                    <thead>
+                        <tr>
+                            <th>Round</th>
+                            <th>Pick</th>
+                            <th>Team</th>
+                            <th>Player</th>
+                            <th>Position</th>
+                        </tr>
+                    </thead>
+                    <tbody id="draft-board-body">
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        // Insert draft board after recommendation box
+        const recBox = document.getElementById('recommendation-box');
+        if (recBox && recBox.nextSibling) {
+            draftAssistantContainer.insertBefore(draftBoard, recBox.nextSibling);
+        } else {
+            draftAssistantContainer.appendChild(draftBoard);
+        }
+
+        // Add animation
+        draftBoard.style.opacity = '0';
+        draftBoard.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            draftBoard.style.transition = 'all 0.5s ease-out';
+            draftBoard.style.opacity = '1';
+            draftBoard.style.transform = 'translateY(0)';
+        }, 200);
+    }
+
+    // Update the draft board with current selections
+    const draftBoardBody = document.getElementById('draft-board-body');
+    draftBoardBody.innerHTML = '';
+
+    // Convert draftedPlayersWithTeam map to array of drafted players
+    const draftedPlayers = [];
+    let pickCount = 1;
+
+    draftedPlayersWithTeam.forEach((teamNumber, playerName) => {
+        // Find the player's position by checking which team dropdown they're selected in
+        let playerPosition = '';
+        document.querySelectorAll(`select[name^="team${teamNumber}-"]`).forEach(select => {
+            if (select.value === playerName) {
+                // Extract position from select name (format: team{number}-{position}{number})
+                const posMatch = select.name.match(/team\d+-(QB|RB|WR|TE|K|FLEX|DST|Bench)/);
+                if (posMatch && posMatch[1]) {
+                    playerPosition = posMatch[1];
+                }
+            }
+        });
+
+        // Calculate round based on pick number and total teams
+        const settings = getDraftSettings();
+        const round = Math.ceil(pickCount / settings.numTeams);
+
+        draftedPlayers.push({
+            playerName,
+            teamNumber,
+            position: playerPosition,
+            pick: pickCount,
+            round
+        });
+
+        pickCount++;
+    });
+
+    // Sort by pick number
+    draftedPlayers.sort((a, b) => a.pick - b.pick);
+
+    // Add players to draft board
+    draftedPlayers.forEach(player => {
+        const row = document.createElement('tr');
+
+        // Get team name
+        let teamName = `Team ${player.teamNumber}`;
+        const teamBoxes = document.querySelectorAll('.team-box');
+        if (teamBoxes[player.teamNumber - 1]) {
+            const teamNameEl = teamBoxes[player.teamNumber - 1].querySelector('h3');
+            if (teamNameEl) {
+                teamName = teamNameEl.textContent;
+            }
+        }
+
+        row.innerHTML = `
+            <td>${player.round}</td>
+            <td>${player.pick}</td>
+            <td>${teamName}</td>
+            <td>${player.playerName}</td>
+            <td>${player.position}</td>
+        `;
+
+        // Add animation
+        row.style.opacity = '0';
+        draftBoardBody.appendChild(row);
+        setTimeout(() => {
+            row.style.transition = 'all 0.3s ease-out';
+            row.style.opacity = '1';
+        }, 50);
+    });
+}
 
 // --- Scoring Type Helper ---
 function getScoringType() {
@@ -572,7 +768,7 @@ function createRecommendationBox(numTeams, teamSelectRef) {
                         <div class="result-content">
                             <div class="position-recommendation">
                                 <span class="label">Recommended Position:</span>
-                                <span class="value position-${recommendedPosition.toLowerCase()}">${recommendedPosition}</span>
+                                <span class="value">${recommendedPosition}</span>
                                 <span class="reason">${reasonText}</span>
                             </div>
                             <div class="player-recommendation">
@@ -744,10 +940,17 @@ function makeTeamNameEditable(h3, teamDiv, teamSelect, teamIndex) {
         teamDiv.replaceChild(input, h3);
         input.focus();
         function saveName() {
-            h3.textContent = input.value || 'Team';
+            const oldName = h3.textContent;
+            const newName = input.value || 'Team';
+            h3.textContent = newName;
             teamDiv.replaceChild(h3, input);
             if (teamSelect) {
-                teamSelect.options[teamIndex - 1].textContent = h3.textContent;
+                teamSelect.options[teamIndex - 1].textContent = newName;
+            }
+
+            // If the name has changed, update the player draft status in the rankings table
+            if (oldName !== newName) {
+                updateDropdowns(); // This will call updatePlayerRankingDraftStatus()
             }
         }
         input.addEventListener('blur', saveName);
@@ -1041,7 +1244,7 @@ function createRecommendationBox(numTeams, teamSelectRef) {
                         <div class="result-content">
                             <div class="position-recommendation">
                                 <span class="label">Recommended Position:</span>
-                                <span class="value position-${recommendedPosition.toLowerCase()}">${recommendedPosition}</span>
+                                <span class="value">${recommendedPosition}</span>
                                 <span class="reason">${reasonText}</span>
                             </div>
                             <div class="player-recommendation">

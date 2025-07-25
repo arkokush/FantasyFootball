@@ -1,33 +1,33 @@
-rank,name,team,player_id
-1,Denver Broncos,DEN,DEN
-2,Philadelphia Eagles,PHI,PHI
-3,Pittsburgh Steelers,PIT,PIT
-4,Baltimore Ravens,BAL,BAL
-5,Minnesota Vikings,MIN,MIN
-6,Kansas City Chiefs,KC,KC
-7,Detroit Lions,DET,DET
-8,Houston Texans,HOU,HOU
-9,Buffalo Bills,BUF,BUF
-10,Los Angeles Chargers,LAC,LAC
-11,New York Jets,NYJ,NYJ
-12,Green Bay Packers,GB,GB
-13,Seattle Seahawks,SEA,SEA
-14,Los Angeles Rams,LAR,LAR
-15,San Francisco 49ers,SF,SF
-16,Cleveland Browns,CLE,CLE
-17,Dallas Cowboys,DAL,DAL
-18,Tampa Bay Buccaneers,TB,TB
-19,Chicago Bears,CHI,CHI
-20,Miami Dolphins,MIA,MIA
-21,New England Patriots,NE,NE
-22,Arizona Cardinals,ARI,ARI
-23,New York Giants,NYG,NYG
-24,Atlanta Falcons,ATL,ATL
-25,Washington Commanders,WAS,WAS
-26,Cincinnati Bengals,CIN,CIN
-27,New Orleans Saints,NO,NO
-28,Indianapolis Colts,IND,IND
-29,Las Vegas Raiders,LV,LV
-30,Jacksonville Jaguars,JAC,JAC
-31,Tennessee Titans,TEN,TEN
-32,Carolina Panthers,CAR,CAR
+rank,name,team,player_id,BYE
+1,Denver Broncos,DEN,DEN,12
+2,Philadelphia Eagles,PHI,PHI,9
+3,Pittsburgh Steelers,PIT,PIT,5
+4,Baltimore Ravens,BAL,BAL,7
+5,Minnesota Vikings,MIN,MIN,6
+6,Kansas City Chiefs,KC,KC,10
+7,Detroit Lions,DET,DET,8
+8,Houston Texans,HOU,HOU,6
+9,Buffalo Bills,BUF,BUF,7
+10,Los Angeles Chargers,LAC,LAC,12
+11,New York Jets,NYJ,NYJ,9
+12,Green Bay Packers,GB,GB,5
+13,Seattle Seahawks,SEA,SEA,8
+14,Los Angeles Rams,LAR,LAR,8
+15,San Francisco 49ers,SF,SF,14
+16,Cleveland Browns,CLE,CLE,9
+17,Dallas Cowboys,DAL,DAL,10
+18,Tampa Bay Buccaneers,TB,TB,9
+19,Chicago Bears,CHI,CHI,5
+20,Miami Dolphins,MIA,MIA,12
+21,New England Patriots,NE,NE,14
+22,Arizona Cardinals,ARI,ARI,8
+23,New York Giants,NYG,NYG,14
+24,Atlanta Falcons,ATL,ATL,5
+25,Washington Commanders,WAS,WAS,12
+26,Cincinnati Bengals,CIN,CIN,10
+27,New Orleans Saints,NO,NO,11
+28,Indianapolis Colts,IND,IND,11
+29,Las Vegas Raiders,LV,LV,8
+30,Jacksonville Jaguars,JAC,JAC,8
+31,Tennessee Titans,TEN,TEN,10
+32,Carolina Panthers,CAR,CAR,14

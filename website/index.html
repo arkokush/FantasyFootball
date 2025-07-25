@@ -21,6 +21,16 @@
                 </div>
                 <div class="hero-gradient"></div>
             </div>
+            <!-- Dark mode toggle button -->
+            <div class="theme-toggle-container">
+                <select id="theme-select" class="theme-select" aria-label="Select color scheme">
+                    <option value="light">Light Theme <span class="theme-color-squares"><span class="color-square" style="background-color: #4A6FA5;"></span><span class="color-square" style="background-color: #30B18A;"></span><span class="color-square" style="background-color: #FF8C42;"></span></span></option>
+                    <option value="dark">Dark Theme <span class="theme-color-squares"><span class="color-square" style="background-color: #845EC2;"></span><span class="color-square" style="background-color: #00C9A7;"></span><span class="color-square" style="background-color: #FF8066;"></span></span></option>
+                    <option value="forest">Forest Green <span class="theme-color-squares"><span class="color-square" style="background-color: #2D6A4F;"></span><span class="color-square" style="background-color: #52B788;"></span><span class="color-square" style="background-color: #D8A96C;"></span></span></option>
+                    <option value="midnight">Midnight Blue <span class="theme-color-squares"><span class="color-square" style="background-color: #1E3A8A;"></span><span class="color-square" style="background-color: #0F766E;"></span><span class="color-square" style="background-color: #C2410C;"></span></span></option>
+                    <option value="sunset">Sunset Orange <span class="theme-color-squares"><span class="color-square" style="background-color: #FF6B6B;"></span><span class="color-square" style="background-color: #4ECDC4;"></span><span class="color-square" style="background-color: #FFB347;"></span></span></option>
+                </select>
+            </div>
         </header>
 
         <nav class="main-nav">
@@ -43,6 +53,73 @@
         </nav>
 
         <main class="main-content">
+            <!-- Player Rankings Board -->
+            <section id="player-rankings" class="player-rankings-section" style="display: none;">
+                <div class="section-header fade-in">
+                    <h2><i class="fas fa-trophy"></i> Player Rankings</h2>
+                    <p>View and sort available players by position and value</p>
+                </div>
+
+                <div class="ranking-board fade-in">
+                    <div class="ranking-tabs">
+                        <button class="tab-btn active" data-tab="all">ALL</button>
+                        <button class="tab-btn" data-tab="qb">QB</button>
+                        <button class="tab-btn" data-tab="rb">RB</button>
+                        <button class="tab-btn" data-tab="wr">WR</button>
+                        <button class="tab-btn" data-tab="te">TE</button>
+                        <button class="tab-btn" data-tab="flex">FLEX</button>
+                        <button class="tab-btn" data-tab="k">K</button>
+                    </div>
+
+                    <div class="ranking-controls">
+                        <div class="search-container">
+                            <input type="text" id="player-search" placeholder="Search players..." aria-label="Search players">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="ranking-filters">
+                            <label for="ranking-limit">Show: </label>
+                            <select id="ranking-limit">
+                                <option value="25">Top 25</option>
+                                <option value="50" selected>Top 50</option>
+                                <option value="100">Top 100</option>
+                                <option value="all">All</option>
+                            </select>
+                            <div class="drafted-players-toggle">
+                                <input type="checkbox" id="show-drafted-players" name="show-drafted-players">
+                                <label for="show-drafted-players">See drafted players</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ranking-table-container">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>POS</th>
+                                    <th>Team</th>
+                                    <th>Bye</th>
+                                    <th class="sortable" data-sort="projected">Projected <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="vor">VOR <i class="fas fa-sort"></i></th>
+                                    <th>Draft Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ranking-table-body">
+                                <!-- Rankings will be populated dynamically -->
+                                <tr class="table-loading">
+                                    <td colspan="8">
+                                        <div class="loading-spinner-small">
+                                            <i class="fas fa-football-ball fa-spin"></i> Loading players...
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             <section class="draft-settings-section">
                 <div class="section-header">
                     <h2><i class="fas fa-cog"></i> Draft Configuration</h2>
@@ -156,6 +233,7 @@
         </div>
     </div>
 
+    <script src="utils.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
