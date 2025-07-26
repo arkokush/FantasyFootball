@@ -503,9 +503,9 @@ const rankingUtils = {
             // Create CSS class for highlighting bye weeks if in a critical week (e.g., playoffs)
             const byeClass = (parseInt(byeWeek) >= 13) ? 'playoff-bye' : '';
 
-            // Check if player is drafted and get team name
-            const isDrafted = this.state.draftedPlayers[player.name];
-            const teamName = isDrafted || 'Undrafted';
+            // Properly check if player is drafted and get team name
+            const isDrafted = this.state.draftedPlayers[player.name] ? true : false;
+            const teamName = isDrafted ? this.state.draftedPlayers[player.name] : 'Undrafted';
 
             // Create draft status class based on draft status
             const draftStatusClass = isDrafted ? 'draft-status drafted' : 'draft-status undrafted';
