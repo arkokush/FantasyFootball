@@ -18,5 +18,5 @@ env/
 node_modules/
 
 # Images, logs, or generated files (if any)
-website/res/main_background.jpg
+docs/res/main_background.jpg
 *.log
