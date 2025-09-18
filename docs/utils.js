@@ -2,7 +2,6 @@
  * Fantasy Football Draft Assistant - Utility Functions
  * This file contains utility functions for dark mode, animations, and player rankings
  */
-
 // Team bye week data for 2025 season
 const NFL_TEAM_BYES = {
     'ARI': 8,  // Cardinals

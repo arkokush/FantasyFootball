@@ -1,4 +1,4 @@
-// main.js
+// File Name: main.js
 
 // --- Draft Settings ---
 function getDraftSettings() {
