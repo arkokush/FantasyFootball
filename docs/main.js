@@ -18,14 +18,8 @@ function getDraftSettings() {
 // --- Player Names ---
 const playerNamesByPos = {};
 
-function getBasePath() {
-    const isGitHubPages = window.location.hostname.includes('github.io');
-    return isGitHubPages ? '/FantasyFootball' : '..';
-}
-
 async function fetchCsvRows(file) {
-    const basePath = getBasePath();
-    const res = await fetch(`${basePath}/data/2025/${file}`);
+    const res = await fetch(`data/2025/${file}`);
     const text = await res.text();
     const [header, ...rows] = text.trim().split('\n');
     const keys = header.split(',');
