@@ -19,8 +19,7 @@ function getDraftSettings() {
 const playerNamesByPos = {};
 
 async function fetchCsvRows(file) {
-    // CORRECTED PATH: Removed the leading "../" to make the path relative to the root of the site.
-    const res = await fetch(`data/2025/${file}`);
+    const res = await fetch(`../data/2025/${file}`);
     const text = await res.text();
     const [header, ...rows] = text.trim().split('\n');
     const keys = header.split(',');
@@ -520,15 +519,15 @@ function getValidPositions(draftState, settings) {
 
     // Always allow bench picks if there are bench slots
     const filledPositions = (settings.numQBs - draftState.qb_need) +
-        (settings.numRBs - draftState.rb_need) +
-        (settings.numWRs - draftState.wr_need) +
-        (settings.numTEs - draftState.te_need) +
-        (settings.numKs - draftState.k_need) +
-        (settings.numDST - draftState.dst_need) +
-        (settings.numFlex - draftState.flex_need);
+                           (settings.numRBs - draftState.rb_need) +
+                           (settings.numWRs - draftState.wr_need) +
+                           (settings.numTEs - draftState.te_need) +
+                           (settings.numKs - draftState.k_need) +
+                           (settings.numDST - draftState.dst_need) +
+                           (settings.numFlex - draftState.flex_need);
     const totalSlots = settings.numQBs + settings.numRBs + settings.numWRs +
-        settings.numTEs + settings.numKs + settings.numDST +
-        settings.numFlex + settings.numBench;
+                      settings.numTEs + settings.numKs + settings.numDST +
+                      settings.numFlex + settings.numBench;
 
     if (filledPositions < totalSlots) {
         // Add all positions for bench consideration
@@ -601,15 +600,15 @@ function getBestPlayerAtPosition(position, scoringType) {
 // --- Round Check Helpers ---
 function isSecondToLastRound(round, settings) {
     const totalRounds = settings.numQBs + settings.numRBs + settings.numWRs +
-        settings.numTEs + settings.numKs + settings.numFlex +
-        settings.numDST + settings.numBench;
+                       settings.numTEs + settings.numKs + settings.numFlex +
+                       settings.numDST + settings.numBench;
     return round === totalRounds - 1;
 }
 
 function isLastRound(round, settings) {
     const totalRounds = settings.numQBs + settings.numRBs + settings.numWRs +
-        settings.numTEs + settings.numKs + settings.numFlex +
-        settings.numDST + settings.numBench;
+                       settings.numTEs + settings.numKs + settings.numFlex +
+                       settings.numDST + settings.numBench;
     return round === totalRounds;
 }
 
