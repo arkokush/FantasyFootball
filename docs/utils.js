@@ -166,7 +166,6 @@ const rankingUtils = {
         searchQuery: '', // Current search query
         displayLimit: 50, // Number of players to display
         draftedPlayers: {}, // Object to track drafted players: { playerName: teamName }
-        showDraftedPlayers: false // Flag to track whether to show drafted players
     },
 
     /**
@@ -369,8 +368,8 @@ const rankingUtils = {
                 return false;
             }
 
-            // If showDraftedPlayers is false, hide drafted players
-            if (!this.state.showDraftedPlayers && this.state.draftedPlayers[player.name]) {
+            // If the player is drafted and toggle is OFF (red), hide the player
+            if (this.state.draftedPlayers[player.name] && !this.state.showDraftedPlayers) {
                 return false;
             }
 
@@ -503,11 +502,9 @@ const rankingUtils = {
             // Create CSS class for highlighting bye weeks if in a critical week (e.g., playoffs)
             const byeClass = (parseInt(byeWeek) >= 13) ? 'playoff-bye' : '';
 
-            // Check if player is drafted and get team name
-            const isDrafted = this.state.draftedPlayers[player.name];
-            const teamName = isDrafted || 'Undrafted';
-
-            // Create draft status class based on draft status
+            // Properly check if player is drafted and get team name
+            const playerTeam = this.state.draftedPlayers[player.name];
+            const isDrafted = playerTeam ? true : false;
             const draftStatusClass = isDrafted ? 'draft-status drafted' : 'draft-status undrafted';
 
             const row = document.createElement('tr');
@@ -526,7 +523,7 @@ const rankingUtils = {
                 <td>${projPoints}</td>
                 <td class="${isHighVOR ? 'high-vor' : ''}">${vorValue}</td>
                 <td class="${draftStatusClass}">
-                    ${isDrafted ? `<i class="fas fa-check"></i> ${teamName}` : 'Undrafted'}
+                    ${isDrafted ? `<i class="fas fa-check"></i> Drafted by ${playerTeam}` : 'Undrafted'}
                 </td>
             `;
 

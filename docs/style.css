@@ -13,6 +13,12 @@
     --warning-color: #E2711D;
     --error-color: #6F1A07;
 
+    /* Toggle Switch Colors */
+    --toggle-off-color: #e05c5c;  /* Red for OFF state */
+    --toggle-on-color: #30B18A;   /* Green for ON state */
+    --toggle-bg-off: #ffeeee;     /* Light red background for OFF state */
+    --toggle-bg-on: #e6f7f2;      /* Light green background for ON state */
+
     --neutral-light: #EFE7DA;
     --neutral-medium: #D4C4B0;
     --neutral-dark: #313715;
@@ -1849,4 +1855,151 @@ body {
 .theme-dark .panel-toggle,
 .theme-midnight .panel-toggle {
     background-color: var(--dark-accent);
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--toggle-bg-off);
+    transition: .4s;
+    border-radius: var(--border-radius-md);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: var(--toggle-off-color);
+    border-radius: 50%;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: var(--toggle-bg-on);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+    background-color: var(--toggle-on-color);
+}
+
+/* Enhanced styles for toggle switch in dark mode */
+body[data-theme="dark"] .toggle-switch .slider {
+    background-color: var(--toggle-bg-off);
+}
+
+body[data-theme="dark"] .toggle-switch .slider:before {
+    background-color: var(--toggle-off-color);
+}
+
+body[data-theme="dark"] input:checked + .slider {
+    background-color: var(--toggle-bg-on);
+}
+
+body[data-theme="dark"] input:checked + .slider:before {
+    transform: translateX(26px);
+    background-color: var(--toggle-on-color);
+}
+
+/* Drafted Players Toggle Switch Styles */
+.drafted-players-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: 1rem;
+}
+
+.drafted-players-toggle label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--neutral-dark);
+    cursor: pointer;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+    vertical-align: middle;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--toggle-bg-off);
+    transition: .3s ease;
+    border-radius: 24px;
+    border: 1px solid var(--toggle-off-color);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 2px;
+    background-color: var(--toggle-off-color);
+    transition: .3s ease;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--toggle-bg-on);
+    border-color: var(--toggle-on-color);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+    background-color: var(--toggle-on-color);
+}
+
+/* Icons for toggle switch */
+.toggle-slider:after {
+    content: "×";
+    color: white;
+    display: flex;
+    position: absolute;
+    right: 7px;
+    top: 1px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+input:checked + .toggle-slider:after {
+    content: "✓";
+    left: 7px;
+    right: auto;
 }
