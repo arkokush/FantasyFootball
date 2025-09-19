@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" href="res/website-icon-football.png" type="image/png">
 </head>
 <body>
     <div class="app-container">
@@ -56,6 +57,11 @@
                         <span>Home</span>
                     </a>
 
+                    <a href="https://arkokush.github.io/" target="_blank" class="nav-link">
+                        <i class="fas fa-code"></i>
+                        <span>Other Projects</span>
+                    </a>
+
                     <a href="https://github.com/arkokush" target="_blank" class="nav-link">
                         <i class="fab fa-github"></i>
                         <span>GitHub</span>
@@ -68,6 +74,12 @@
         <button id="player-rankings-toggle" class="player-rankings-float-button">
             <i class="fas fa-trophy"></i>
             <span>Player Rankings</span>
+        </button>
+
+        <!-- Draft Board Float Button - Fixed on the left side of the screen -->
+        <button id="draft-board-toggle" class="draft-board-float-button">
+            <i class="fas fa-clipboard-list"></i>
+            <span>Draft Board</span>
         </button>
 
         <!-- Player Rankings Sidebar -->
@@ -114,7 +126,6 @@
                                 <th>Player</th>
                                 <th>POS</th>
                                 <th>Team</th>
-                                <th>Bye</th>
                                 <th class="sortable" data-sort="projected">Projected <i class="fas fa-sort"></i></th>
                                 <th class="sortable" data-sort="vor">VOR <i class="fas fa-sort"></i></th>
                                 <th>Draft Status</th>
@@ -126,6 +137,42 @@
                                 <td colspan="8">
                                     <div class="loading-spinner-small">
                                         <i class="fas fa-football-ball fa-spin"></i> Loading players...
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Draft Board Sidebar -->
+        <div id="draft-board-sidebar" class="draft-board-sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-clipboard-list"></i> Draft Board</h2>
+                <button id="close-draft-board" class="close-sidebar-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="draft-board-container">
+                    <table class="draft-table">
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Pick</th>
+                                <th>Team</th>
+                                <th>Player</th>
+                                <th>Position</th>
+                            </tr>
+                        </thead>
+                        <tbody id="draft-board-body">
+                            <!-- Draft picks will be populated dynamically -->
+                            <tr class="table-loading">
+                                <td colspan="5">
+                                    <div class="loading-spinner-small">
+                                        <i class="fas fa-football-ball fa-spin"></i> No picks yet
                                     </div>
                                 </td>
                             </tr>
