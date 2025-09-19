@@ -19,16 +19,63 @@ function getDraftSettings() {
 const playerNamesByPos = {};
 
 async function fetchCsvRows(file) {
-    const res = await fetch(`data/2025/${file}`);
-    const text = await res.text();
-    const [header, ...rows] = text.trim().split('\n');
-    const keys = header.split(',');
-    return rows.map(row => {
-        const vals = row.split(',');
-        const obj = {};
-        keys.forEach((k, i) => obj[k] = vals[i]);
-        return obj;
-    });
+    try {
+        // Try different possible paths to work both locally and on GitHub Pages
+        const possiblePaths = [
+            `data/2025/${file}`,
+            `./data/2025/${file}`,
+            `/FantasyFootball/docs/data/2025/${file}`, // GitHub Pages path
+            `/docs/data/2025/${file}`
+        ];
+
+        let response;
+        let lastError;
+
+        for (const path of possiblePaths) {
+            try {
+                response = await fetch(path);
+                if (response.ok) {
+                    break;
+                }
+            } catch (error) {
+                lastError = error;
+                continue;
+            }
+        }
+
+        if (!response || !response.ok) {
+            console.warn(`Could not fetch ${file} from any path. Last error:`, lastError);
+            return [];
+        }
+
+        const text = await response.text();
+        if (!text.trim()) {
+            console.warn(`File ${file} is empty`);
+            return [];
+        }
+
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) {
+            console.warn(`File ${file} has no data rows`);
+            return [];
+        }
+
+        const [header, ...rows] = lines;
+        const keys = header.split(',').map(key => key.trim());
+
+        return rows.map(row => {
+            const vals = row.split(',').map(val => val.trim());
+            const obj = {};
+            keys.forEach((k, i) => {
+                obj[k] = vals[i] || '';
+            });
+            return obj;
+        }).filter(obj => obj.name); // Filter out rows without names
+
+    } catch (error) {
+        console.error(`Error fetching ${file}:`, error);
+        return [];
+    }
 }
 
 async function loadPlayerNames(position) {
@@ -832,478 +879,920 @@ function createRecommendationBox(numTeams, teamSelectRef) {
     };
 }
 
-// --- Helpers to get draft state and available players ---
-function getCurrentDraftState(selectedTeam, round, pick_no) {
-    const teams = Array.from(document.querySelectorAll('.team-box'));
-    function countEmpty(teamDiv, label, count) {
-        let empty = 0;
-        for (let i = 1; i <= count; i++) {
-            const sel = teamDiv.querySelector(`select[name^="team${teamDiv.dataset.teamIndex}-${label}${i}"]`);
-            if (sel && !sel.value) empty++;
-        }
-        return empty;
-    }
-    const settings = getDraftSettings();
-    teams.forEach((div, idx) => { div.dataset.teamIndex = idx + 1; });
+// --- New UI Component Functionality ---
 
-    const myTeamDiv = teams[selectedTeam - 1];
-    const qb_need = countEmpty(myTeamDiv, 'QB', settings.numQBs);
-    const rb_need = countEmpty(myTeamDiv, 'RB', settings.numRBs);
-    const wr_need = countEmpty(myTeamDiv, 'WR', settings.numWRs);
-    const te_need = countEmpty(myTeamDiv, 'TE', settings.numTEs);
-    const k_need = countEmpty(myTeamDiv, 'K', settings.numKs);
-    const dst_need = countEmpty(myTeamDiv, 'DST', settings.numDST);
+// Theme Toggle Functionality
+function initThemeToggle() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const html = document.documentElement;
 
-    let other_qb_need = 0, other_rb_need = 0, other_wr_need = 0, other_te_need = 0, other_k_need = 0, other_dst_need = 0;
-    teams.forEach((div, idx) => {
-        if (idx + 1 === selectedTeam) return;
-        other_qb_need += countEmpty(div, 'QB', settings.numQBs);
-        other_rb_need += countEmpty(div, 'RB', settings.numRBs);
-        other_wr_need += countEmpty(div, 'WR', settings.numWRs);
-        other_te_need += countEmpty(div, 'TE', settings.numTEs);
-        other_k_need += countEmpty(div, 'K', settings.numKs);
-        other_dst_need += countEmpty(div, 'DST', settings.numDST);
+    // Get saved theme or default to dark
+    const savedTheme = localStorage.getItem('fantasy-draft-theme') || 'dark';
+    html.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('fantasy-draft-theme', newTheme);
+        updateThemeIcon(newTheme);
     });
+}
 
-    // flex_need and other_flex_need as sum of RB/WR/TE needs
-    const flex_need = rb_need + wr_need + te_need;
-    const other_flex_need = other_rb_need + other_wr_need + other_te_need;
+function updateThemeIcon(theme) {
+    const icon = document.querySelector('#theme-toggle i');
+    icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 
-    const qb_available = playerNamesByPos.QB.filter(n => !unavailablePlayers.has(n)).length;
-    const rb_available = playerNamesByPos.RB.filter(n => !unavailablePlayers.has(n)).length;
-    const wr_available = playerNamesByPos.WR.filter(n => !unavailablePlayers.has(n)).length;
-    const te_available = playerNamesByPos.TE.filter(n => !unavailablePlayers.has(n)).length;
-    const k_available = playerNamesByPos.K.filter(n => !unavailablePlayers.has(n)).length;
-    const dst_available = playerNamesByPos.DST.filter(n => !unavailablePlayers.has(n)).length;
-    const flex_available = playerNamesByPos.FLEX.filter(n => !unavailablePlayers.has(n)).length;
+    // Reapply accent color for new theme
+    const savedAccentColor = localStorage.getItem('fantasy-draft-accent') || 'green';
+    setAccentColor(savedAccentColor);
+}
 
-    return {
-        pick_no,
-        round,
-        scoring_type: getScoringType(),
-        qb_need,
-        rb_need,
-        wr_need,
-        te_need,
-        k_need,
-        dst_need,
-        flex_need,
-        other_qb_need,
-        other_rb_need,
-        other_wr_need,
-        other_te_need,
-        other_k_need,
-        other_dst_need,
-        other_flex_need,
-        qb_available,
-        rb_available,
-        wr_available,
-        te_available,
-        k_available,
-        dst_available,
-        flex_available
+// Hide loading overlay on page load
+function hideLoadingOverlay() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+    }
+}
+
+// Accent Color Functionality
+function initAccentColorSelector() {
+    const colorSelector = document.getElementById('accent-color-selector');
+    const html = document.documentElement;
+
+    // Get saved accent color or default to green
+    const savedAccentColor = localStorage.getItem('fantasy-draft-accent') || 'green';
+    setAccentColor(savedAccentColor);
+    updateColorSelectorActive(savedAccentColor);
+
+    colorSelector.addEventListener('click', (e) => {
+        if (e.target.closest('.color-option')) {
+            const colorOption = e.target.closest('.color-option');
+            const colorValue = colorOption.dataset.color;
+
+            // Remove active class from all options
+            colorSelector.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+
+            // Add active class to selected option
+            colorOption.classList.add('active');
+
+            // Apply the accent color
+            setAccentColor(colorValue);
+            localStorage.setItem('fantasy-draft-accent', colorValue);
+        }
+    });
+}
+
+function setAccentColor(color) {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+
+    // Define accent colors for each theme
+    const accentColors = {
+        green: {
+            light: { primary: '#34c759', hover: '#28a745' },
+            dark: { primary: '#30d158', hover: '#28b946' }
+        },
+        blue: {
+            light: { primary: '#007aff', hover: '#0056cc' },
+            dark: { primary: '#0a84ff', hover: '#0066cc' }
+        },
+        red: {
+            light: { primary: '#ff3b30', hover: '#d70015' },
+            dark: { primary: '#ff453a', hover: '#dc2626' }
+        },
+        orange: {
+            light: { primary: '#ff9500', hover: '#e6850e' },
+            dark: { primary: '#ff9f0a', hover: '#e6850e' }
+        }
     };
-}
 
-// --- Team UI ---
-function createTeamsContainer() {
-    const draftAssistantContainer = document.getElementById('draft-assistant-container');
-    let teamsContainer = document.getElementById('teams-container');
-    if (!teamsContainer) {
-        teamsContainer = document.createElement('div');
-        teamsContainer.id = 'teams-container';
-        teamsContainer.className = 'teams-section'; // Ensure class is set
-        draftAssistantContainer.appendChild(teamsContainer); // Append to the stable container
-    }
-    teamsContainer.innerHTML = '';
-    return teamsContainer;
-}
-function addDropdowns(teamDiv, t, label, count) {
-    const names = playerNamesByPos[label] || [];
-    for (let i = 1; i <= count; i++) {
-        const select = document.createElement('select');
-        select.name = `team${t}-${label}${i}`;
-        let options = `<option value="">Select ${label} ${i}</option>`;
-        for (const name of names) {
-            options += `<option value="${name}">${name}</option>`;
-        }
-        select.innerHTML = options;
-        teamDiv.appendChild(select);
+    const themeColors = accentColors[color];
+    if (themeColors) {
+        const colors = currentTheme === 'dark' ? themeColors.dark : themeColors.light;
+        html.style.setProperty('--color-accent', colors.primary);
+        html.style.setProperty('--color-accent-hover', colors.hover);
     }
 }
-function makeTeamNameEditable(h3, teamDiv, teamSelect, teamIndex) {
-    h3.addEventListener('click', function () {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = h3.textContent;
-        input.className = 'team-name-input';
-        teamDiv.replaceChild(input, h3);
-        input.focus();
-        function saveName() {
-            const oldName = h3.textContent;
-            const newName = input.value || 'Team';
-            h3.textContent = newName;
-            teamDiv.replaceChild(h3, input);
-            if (teamSelect) {
-                teamSelect.options[teamIndex - 1].textContent = newName;
-            }
 
-            // If the name has changed, update the player draft status in the rankings table
-            if (oldName !== newName) {
-                updateDropdowns(); // This will call updatePlayerRankingDraftStatus()
-            }
-        }
-        input.addEventListener('blur', saveName);
-        input.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                input.blur();
-            }
+function updateColorSelectorActive(color) {
+    const colorSelector = document.getElementById('accent-color-selector');
+    if (colorSelector) {
+        colorSelector.querySelectorAll('.color-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.color === color);
         });
+    }
+}
+
+// Stepper Controls Functionality
+function initStepperControls() {
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.stepper-btn')) {
+            const btn = e.target.closest('.stepper-btn');
+            const action = btn.dataset.action;
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+
+            if (!input) return;
+
+            const currentValue = parseInt(input.value, 10);
+            const min = parseInt(input.min, 10);
+            const max = parseInt(input.max, 10);
+
+            let newValue = currentValue;
+
+            if (action === 'increment' && currentValue < max) {
+                newValue = currentValue + 1;
+            } else if (action === 'decrement' && currentValue > min) {
+                newValue = currentValue - 1;
+            }
+
+            if (newValue !== currentValue) {
+                input.value = newValue;
+                // Trigger input event to maintain compatibility with existing form validation
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    });
+
+    // Keyboard support for steppers
+    document.addEventListener('keydown', (e) => {
+        if (e.target.classList.contains('stepper-btn')) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.target.click();
+            }
+        }
     });
 }
-function createTeamBoxes(settings, teamsContainer, teamSelect) {
-    for (let t = 1; t <= settings.numTeams; t++) {
-        const teamDiv = document.createElement('div');
-        teamDiv.className = 'team-box';
-        const h3 = document.createElement('h3');
-        h3.textContent = `Team ${t}`;
-        makeTeamNameEditable(h3, teamDiv, teamSelect, t);
-        teamDiv.appendChild(h3);
-        addDropdowns(teamDiv, t, 'QB', settings.numQBs);
-        addDropdowns(teamDiv, t, 'RB', settings.numRBs);
-        addDropdowns(teamDiv, t, 'WR', settings.numWRs);
-        addDropdowns(teamDiv, t, 'TE', settings.numTEs);
-        addDropdowns(teamDiv, t, 'K', settings.numKs);
-        addDropdowns(teamDiv, t, 'FLEX', settings.numFlex);
-        addDropdowns(teamDiv, t, 'DST', settings.numDST);
-        addDropdowns(teamDiv, t, 'Bench', settings.numBench);
-        teamsContainer.appendChild(teamDiv);
-    }
+
+// Segmented Control Functionality
+function initSegmentedControl() {
+    const segmentedControl = document.querySelector('.segmented-control');
+    const hiddenInput = document.getElementById('scoring-type');
+
+    if (!segmentedControl || !hiddenInput) return;
+
+    segmentedControl.addEventListener('click', (e) => {
+        if (e.target.classList.contains('segment-btn')) {
+            // Remove active class from all buttons
+            segmentedControl.querySelectorAll('.segment-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Add active class to clicked button
+            e.target.classList.add('active');
+
+            // Update hidden input value
+            const value = e.target.dataset.value;
+            hiddenInput.value = value;
+
+            // Trigger change event for compatibility
+            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
+    // Keyboard support for segmented control
+    segmentedControl.addEventListener('keydown', (e) => {
+        if (e.target.classList.contains('segment-btn')) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.target.click();
+            }
+        }
+    });
 }
 
-// --- Main Form Handler ---
-document.getElementById('draft-settings-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    showLoadingState();
-    this.classList.add('submitted');
+// Player Rankings Sidebar Functionality
+function initPlayerRankingsSidebar() {
+    const toggleBtn = document.getElementById('player-rankings-toggle');
+    const sidebar = document.getElementById('player-rankings-sidebar');
+    const closeBtn = document.getElementById('close-sidebar');
 
-    const settings = getDraftSettings();
-    const teamSelectRef = { current: null };
-    const draftAssistantContainer = document.getElementById('draft-assistant-container');
-    draftAssistantContainer.innerHTML = ''; // Clear previous content
+    if (!toggleBtn || !sidebar || !closeBtn) return;
 
-    // Always create the UI structure first
+    // Toggle sidebar open/close
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        toggleBtn.classList.toggle('active');
+
+        // Load player data when sidebar is opened
+        if (sidebar.classList.contains('open')) {
+            updatePlayerRankings();
+        }
+    });
+
+    // Close sidebar
+    closeBtn.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        toggleBtn.classList.remove('active');
+    });
+
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (sidebar.classList.contains('open') &&
+            !sidebar.contains(e.target) &&
+            !toggleBtn.contains(e.target)) {
+            sidebar.classList.remove('open');
+            toggleBtn.classList.remove('active');
+        }
+    });
+
+    // ESC key to close sidebar
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            toggleBtn.classList.remove('active');
+        }
+    });
+}
+
+// Team Pinning Functionality
+const pinnedTeams = new Set();
+
+function initTeamPinning() {
+    // Add event delegation for pin buttons
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.pin-btn')) {
+            const pinBtn = e.target.closest('.pin-btn');
+            const teamNumber = parseInt(pinBtn.dataset.team);
+            const teamBox = pinBtn.closest('.team-box');
+
+            toggleTeamPin(teamNumber, teamBox, pinBtn);
+        }
+    });
+}
+
+function toggleTeamPin(teamNumber, teamBox, pinBtn) {
+    if (pinnedTeams.has(teamNumber)) {
+        // Unpin team
+        pinnedTeams.delete(teamNumber);
+        teamBox.classList.remove('pinned');
+        pinBtn.classList.remove('pinned');
+        pinBtn.title = 'Pin team';
+    } else {
+        // Pin team
+        pinnedTeams.add(teamNumber);
+        teamBox.classList.add('pinned');
+        pinBtn.classList.add('pinned');
+        pinBtn.title = 'Unpin team';
+    }
+
+    // Reorganize team boxes
+    reorganizeTeamBoxes();
+}
+
+function reorganizeTeamBoxes() {
+    const teamBoxesContainer = document.querySelector('.team-boxes-grid');
+    if (!teamBoxesContainer) return;
+
+    // Check if we need to add a pinned teams section
+    if (pinnedTeams.size > 0) {
+        // Create or update pinned teams header
+        let pinnedTeamsHeader = document.querySelector('.pinned-teams-header');
+        if (!pinnedTeamsHeader) {
+            pinnedTeamsHeader = document.createElement('div');
+            pinnedTeamsHeader.className = 'pinned-teams-header';
+
+            // Insert before the team boxes grid
+            const teamBoxesSection = document.querySelector('.team-boxes-section');
+            if (teamBoxesSection) {
+                teamBoxesSection.insertBefore(pinnedTeamsHeader, teamBoxesContainer);
+            }
+        }
+
+        pinnedTeamsHeader.innerHTML = `
+            <h4><i class="fas fa-thumbtack"></i> Pinned Teams (${pinnedTeams.size})</h4>
+            <p>Teams you're tracking closely</p>
+        `;
+    } else {
+        // Remove pinned teams header if it exists
+        const pinnedTeamsHeader = document.querySelector('.pinned-teams-header');
+        if (pinnedTeamsHeader) {
+            pinnedTeamsHeader.remove();
+        }
+    }
+
+    // Sort team boxes with pinned teams at the top
+    const allTeamBoxes = Array.from(document.querySelectorAll('.team-box'));
+    allTeamBoxes.sort((a, b) => {
+        const aTeamNumber = parseInt(a.dataset.team);
+        const bTeamNumber = parseInt(b.dataset.team);
+        const aIsPinned = pinnedTeams.has(aTeamNumber);
+        const bIsPinned = pinnedTeams.has(bTeamNumber);
+
+        if (aIsPinned && !bIsPinned) return -1;
+        if (!aIsPinned && bIsPinned) return 1;
+        return aTeamNumber - bTeamNumber; // Keep original order within groups
+    });
+
+    // Reorder the DOM elements
+    allTeamBoxes.forEach(teamBox => {
+        teamBoxesContainer.appendChild(teamBox);
+    });
+}
+
+// Team Name Editing Functionality
+function initTeamNameEditing() {
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.team-header h3[contenteditable="true"]')) {
+            const h3 = e.target;
+            h3.classList.add('editing');
+
+            // Select all text when clicking to edit
+            setTimeout(() => {
+                const range = document.createRange();
+                range.selectNodeContents(h3);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }, 10);
+        }
+    });
+
+    document.addEventListener('blur', (e) => {
+        if (e.target.matches('.team-header h3[contenteditable="true"]')) {
+            const h3 = e.target;
+            h3.classList.remove('editing');
+
+            // Validate and sanitize the team name
+            let newName = h3.textContent.trim();
+            if (newName === '') {
+                newName = h3.dataset.original;
+                h3.textContent = newName;
+            }
+
+            // Update any references to this team name in the draft board
+            updateDraftBoard();
+        }
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.target.matches('.team-header h3[contenteditable="true"]')) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                const h3 = e.target;
+                h3.textContent = h3.dataset.original;
+                h3.blur();
+            }
+        }
+    });
+}
+
+// Initialize everything when the DOM is loaded
+document.addEventListener('DOMContentLoaded', async function() {
     try {
-        createRecommendationBox(settings.numTeams, teamSelectRef);
-        const teamsContainer = createTeamsContainer();
+        // Initialize UI components first
+        initThemeToggle();
+        initAccentColorSelector();
+        initStepperControls();
+        initSegmentedControl();
 
-        // First preload player names to ensure dropdowns have data
-        await preloadAllPlayerNames();
+        // Initialize new sidebar and team functionality
+        initPlayerRankingsSidebar();
+        initTeamPinning();
+        initTeamNameEditing();
 
-        // Create team boxes only once, after player data is loaded
-        createTeamBoxes(settings, teamsContainer, teamSelectRef.current);
-        animateTeamBoxes();
+        // Initialize player rankings functionality
+        initPlayerRankings();
 
-        showNotification('Draft setup complete! Player data loaded.', 'success');
+        // Initialize draft form
+        initDraftForm();
+
+        // Try to preload player data in the background
+        try {
+            await preloadAllPlayerNames();
+            console.log('Player data loaded successfully');
+        } catch (error) {
+            console.warn('Could not preload player data:', error);
+            // Continue without player data - the app should still work for configuration
+        }
+
+        // Hide loading overlay
+        hideLoadingOverlay();
+
     } catch (error) {
-        console.error('Error during draft setup:', error);
-        hideLoadingState();
-        showNotification('An error occurred during setup. Please try again.', 'error');
-        this.style.display = 'block';
-        this.classList.remove('submitted');
-        return; // Stop execution
-    } finally {
-        // Hide form and loading state
-        setTimeout(() => {
-            this.style.display = 'none';
-        }, 500);
-        hideLoadingState();
+        console.error('Error during initialization:', error);
+        // Hide loading overlay even if there's an error
+        hideLoadingOverlay();
     }
 });
 
-// --- Enhanced UI Functions ---
-function showLoadingState() {
-    const overlay = document.getElementById('loading-overlay');
-    overlay.classList.add('show');
-}
-
-function hideLoadingState() {
-    const overlay = document.getElementById('loading-overlay');
-    overlay.classList.remove('show');
-}
-
-function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    const existing = document.querySelector('.notification');
-    if (existing) existing.remove();
-
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas ${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
-        </div>
-        <button class="notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-
-    document.body.appendChild(notification);
-
-    // Auto remove after 5 seconds
+// Make sure loading overlay is hidden even if there are issues
+window.addEventListener('load', function() {
+    // Fallback to hide loading overlay after a delay
     setTimeout(() => {
-        notification.classList.add('notification-exit');
-        setTimeout(() => notification.remove(), 300);
-    }, 5000);
+        hideLoadingOverlay();
+    }, 2000);
+});
 
-    // Close button functionality
-    notification.querySelector('.notification-close').addEventListener('click', () => {
-        notification.classList.add('notification-exit');
-        setTimeout(() => notification.remove(), 300);
+// Player Rankings Functionality
+function initPlayerRankings() {
+    const playerRankingsSection = document.getElementById('player-rankings');
+    const rankingTabs = document.querySelectorAll('.tab-btn');
+    const playerSearch = document.getElementById('player-search');
+    const rankingLimit = document.getElementById('ranking-limit');
+
+    if (!playerRankingsSection) return;
+
+    // Tab switching
+    rankingTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            rankingTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            updatePlayerRankings();
+        });
     });
-}
 
-function getNotificationIcon(type) {
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
-    return icons[type] || icons.info;
-}
-
-function animateTeamBoxes() {
-    const teamBoxes = document.querySelectorAll('.team-box');
-    teamBoxes.forEach((box, index) => {
-        box.style.opacity = '0';
-        box.style.transform = 'translateY(30px)';
-
-        setTimeout(() => {
-            box.style.transition = 'all 0.5s ease-out';
-            box.style.opacity = '1';
-            box.style.transform = 'translateY(0)';
-        }, index * 100);
-    });
-}
-
-// --- Enhanced Recommendation Box Creation ---
-function createRecommendationBox(numTeams, teamSelectRef) {
-    const draftAssistantContainer = document.getElementById('draft-assistant-container');
-    let recBox = document.getElementById('recommendation-box');
-    if (!recBox) {
-        recBox = document.createElement('div');
-        recBox.id = 'recommendation-box';
-        recBox.style.opacity = '0';
-        recBox.style.transform = 'translateY(20px)';
-        draftAssistantContainer.appendChild(recBox); // Append to the stable container
-
-        // Animate in
-        setTimeout(() => {
-            recBox.style.transition = 'all 0.5s ease-out';
-            recBox.style.opacity = '1';
-            recBox.style.transform = 'translateY(0)';
-        }, 200);
+    // Search functionality
+    if (playerSearch) {
+        playerSearch.addEventListener('input', debounce(updatePlayerRankings, 300));
     }
 
-    recBox.innerHTML = `
-        <div class="recommendation-header">
-            <h3><i class="fas fa-magic"></i> AI Draft Assistant</h3>
-            <p>Get intelligent position recommendations based on your current draft state</p>
+    // Limit dropdown
+    if (rankingLimit) {
+        rankingLimit.addEventListener('change', updatePlayerRankings);
+    }
+
+    // Table sorting
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const sortBy = header.dataset.sort;
+            toggleSort(sortBy);
+            updatePlayerRankings();
+        });
+    });
+}
+
+let currentSort = { field: 'projected', direction: 'desc' };
+
+function toggleSort(field) {
+    if (currentSort.field === field) {
+        currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+    } else {
+        currentSort.field = field;
+        currentSort.direction = 'desc';
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+async function updatePlayerRankings() {
+    const activeTab = document.querySelector('.tab-btn.active');
+    const searchTerm = document.getElementById('player-search')?.value.toLowerCase() || '';
+    const limit = document.getElementById('ranking-limit')?.value || '50';
+    const tableBody = document.getElementById('ranking-table-body');
+
+    if (!activeTab || !tableBody) return;
+
+    const position = activeTab.dataset.tab;
+
+    try {
+        // Show loading state
+        tableBody.innerHTML = `
+            <tr class="table-loading">
+                <td colspan="8">
+                    <div class="loading-spinner-small">
+                        <i class="fas fa-football-ball fa-spin"></i> Loading players...
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        let players = [];
+        const scoringType = getScoringType();
+
+        // Load players based on active tab
+        if (position === 'all') {
+            // Load all positions
+            const [qb, rb, wr, te, k, dst] = await Promise.all([
+                loadPlayersForPosition('qb'),
+                loadPlayersForPosition('rb'),
+                loadPlayersForPosition('wr'),
+                loadPlayersForPosition('te'),
+                loadPlayersForPosition('k'),
+                loadPlayersForPosition('dst')
+            ]);
+            players = [...qb, ...rb, ...wr, ...te, ...k, ...dst];
+        } else if (position === 'flex') {
+            const [rb, wr, te] = await Promise.all([
+                loadPlayersForPosition('rb'),
+                loadPlayersForPosition('wr'),
+                loadPlayersForPosition('te')
+            ]);
+            players = [...rb, ...wr, ...te];
+        } else {
+            players = await loadPlayersForPosition(position);
+        }
+
+        // Filter by search term
+        if (searchTerm) {
+            players = players.filter(player =>
+                player.name.toLowerCase().includes(searchTerm) ||
+                (player.team && player.team.toLowerCase().includes(searchTerm))
+            );
+        }
+
+        // Sort players
+        players.sort((a, b) => {
+            let aVal, bVal;
+
+            if (currentSort.field === 'projected') {
+                aVal = getProjectedPoints(a, scoringType);
+                bVal = getProjectedPoints(b, scoringType);
+            } else if (currentSort.field === 'vor') {
+                // Simple VOR calculation (projected points - average)
+                aVal = getProjectedPoints(a, scoringType);
+                bVal = getProjectedPoints(b, scoringType);
+            } else {
+                aVal = a[currentSort.field] || 0;
+                bVal = b[currentSort.field] || 0;
+            }
+
+            if (currentSort.direction === 'desc') {
+                return bVal - aVal;
+            }
+            return aVal - bVal;
+        });
+
+        // Apply limit
+        if (limit !== 'all') {
+            players = players.slice(0, parseInt(limit));
+        }
+
+        // Clear table
+        tableBody.innerHTML = '';
+
+        // Populate table
+        players.forEach((player, index) => {
+            const projectedPoints = getProjectedPoints(player, scoringType);
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td class="player-name">${player.name}</td>
+                <td class="position">${player.position || 'N/A'}</td>
+                <td class="team">${player.team || 'N/A'}</td>
+                <td class="bye">${player.bye || 'N/A'}</td>
+                <td class="projected">${projectedPoints.toFixed(1)}</td>
+                <td class="vor">${(projectedPoints - 10).toFixed(1)}</td>
+                <td class="draft-status">Available</td>
+            `;
+
+            tableBody.appendChild(row);
+        });
+
+        // Update draft statuses
+        updatePlayerRankingDraftStatus();
+
+    } catch (error) {
+        console.error('Error updating player rankings:', error);
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; color: var(--color-text-muted);">
+                    Error loading player data
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Draft Form Functionality
+function initDraftForm() {
+    const draftForm = document.getElementById('draft-settings-form');
+
+    if (!draftForm) return;
+
+    draftForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        startDraftAssistant();
+    });
+}
+
+async function startDraftAssistant() {
+    const settings = getDraftSettings();
+    const scoringType = document.getElementById('scoring-type').value;
+
+    try {
+        // Show loading state
+        const submitBtn = document.querySelector('.start-draft-btn');
+        const originalContent = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Setting up draft...</span>';
+        submitBtn.disabled = true;
+
+        // Load player data if not already loaded
+        await getAvailablePlayersAsync();
+
+        // Show player rankings section
+        const playerRankingsSection = document.getElementById('player-rankings');
+        if (playerRankingsSection) {
+            playerRankingsSection.style.display = 'block';
+            updatePlayerRankings();
+        }
+
+        // Create recommendation box and team UI
+        const teamSelectRef = { current: null };
+        createRecommendationBox(settings.numTeams, teamSelectRef);
+        createTeamBoxes(settings.numTeams);
+
+        // Scroll to draft assistant
+        const draftContainer = document.getElementById('draft-assistant-container');
+        if (draftContainer) {
+            draftContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Reset button
+        submitBtn.innerHTML = originalContent;
+        submitBtn.disabled = false;
+
+    } catch (error) {
+        console.error('Error starting draft assistant:', error);
+
+        // Reset button
+        const submitBtn = document.querySelector('.start-draft-btn');
+        submitBtn.innerHTML = '<i class="fas fa-play"></i><span>Start Draft Assistant</span>';
+        submitBtn.disabled = false;
+
+        // Show error message
+        alert('Error setting up draft assistant. Please try again.');
+    }
+}
+
+// Team Boxes Creation
+function createTeamBoxes(numTeams) {
+    const draftAssistantContainer = document.getElementById('draft-assistant-container');
+    let teamBoxesContainer = document.getElementById('team-boxes-container');
+
+    if (teamBoxesContainer) {
+        teamBoxesContainer.remove();
+    }
+
+    teamBoxesContainer = document.createElement('div');
+    teamBoxesContainer.id = 'team-boxes-container';
+    teamBoxesContainer.className = 'team-boxes-section';
+
+    teamBoxesContainer.innerHTML = `
+        <div class="section-header">
+            <h3><i class="fas fa-users"></i> Draft Teams</h3>
+            <p>Track each team's draft picks</p>
         </div>
-        
-        <div class="recommendation-controls">
-            <div class="control-group">
-                <label for="assist-team-select">
-                    <i class="fas fa-users"></i>
-                    Select Team
-                </label>
-                <select id="assist-team-select"></select>
-            </div>
-            
-            <div class="assist-row">
-                <div class="control-group">
-                    <label for="assist-round-input">Round</label>
-                    <input id="assist-round-input" type="number" min="1" value="1">
-                </div>
-                <div class="control-group">
-                    <label for="assist-pick-input">Pick</label>
-                    <input id="assist-pick-input" type="number" min="1" value="1">
-                </div>
-                <button id="assist-btn" class="assist-button">
-                    <i class="fas fa-brain"></i>
-                    <span>Get Recommendation</span>
-                </button>
-            </div>
+        <div class="team-boxes-grid">
+            ${Array.from({ length: numTeams }, (_, i) => createTeamBoxHTML(i + 1)).join('')}
         </div>
-        
-        <div id="assist-recommendation"></div>
     `;
 
-    // --- Set max for round and pick inputs ---
+    draftAssistantContainer.appendChild(teamBoxesContainer);
+
+    // Add event listeners for team boxes
+    initTeamBoxes(numTeams);
+}
+
+function createTeamBoxHTML(teamNumber) {
     const settings = getDraftSettings();
-    const totalRounds =
-        settings.numQBs +
-        settings.numRBs +
-        settings.numWRs +
-        settings.numTEs +
-        settings.numKs +
-        settings.numFlex +
-        settings.numDST +
-        settings.numBench;
-    const roundInput = recBox.querySelector('#assist-round-input');
-    const pickInput = recBox.querySelector('#assist-pick-input');
-    roundInput.max = totalRounds;
-    pickInput.max = totalRounds * settings.numTeams;
 
-    const teamSelect = recBox.querySelector('#assist-team-select');
-    teamSelect.innerHTML = '';
-    for (let t = 1; t <= numTeams; t++) {
-        const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = `Team ${t}`;
-        teamSelect.appendChild(opt);
-    }
-    teamSelectRef.current = teamSelect;
-
-    recBox.querySelector('#assist-btn').onclick = async function() {
-        // Add loading state to button
-        this.classList.add('loading');
-        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Analyzing...</span>';
-
-        try {
-            const selectedTeam = parseInt(teamSelect.value, 10);
-            const round = parseInt(roundInput.value, 10) || 1;
-            const pick_no = parseInt(pickInput.value, 10) || 1;
-            const draftState = getCurrentDraftState(selectedTeam, round, pick_no);
-            await getAvailablePlayersAsync();
-
-            const settings = getDraftSettings();
-            const scoringType = draftState.scoring_type;
-
-            let recommendedPosition;
-            let recommendedPlayer;
-            let reasonText = "";
-
-            // Rule 1: If it's the 2nd to last round, always recommend best kicker
-            if (isSecondToLastRound(round, settings)) {
-                recommendedPosition = 'K';
-                recommendedPlayer = getBestPlayerAtPosition('K', scoringType);
-                reasonText = " (2nd to last round - drafting best kicker)";
-            }
-            // Rule 2: If it's the last round, always recommend best DST
-            else if (isLastRound(round, settings)) {
-                recommendedPosition = 'DST';
-                recommendedPlayer = getBestPlayerAtPosition('DST', scoringType);
-                reasonText = " (last round - drafting best defense)";
-            }
-            // Otherwise, use the model to predict best position
-            else {
-                const availablePlayers = getAvailablePlayersSync();
-
-                // Calculate VORs
-                const qb_vor = getHighestVOR('qb', availablePlayers, settings.numQBs, scoringType);
-                const rb_vor = getHighestVOR('rb', availablePlayers, settings.numRBs, scoringType);
-                const wr_vor = getHighestVOR('wr', availablePlayers, settings.numWRs, scoringType);
-                const te_vor = getHighestVOR('te', availablePlayers, settings.numTEs, scoringType);
-                const k_vor = getHighestVOR('k', availablePlayers, settings.numKs, scoringType);
-                const flex_vor = getHighestVOR('flex', availablePlayers, settings.numFlex, scoringType);
-
-                // Min-max scale bounded cols
-                const boundedScaled = bounded_cols.map(col => {
-                    const val = draftState[col];
-                    const {min, max} = minMax[col];
-                    return minMaxScale(val, min, max);
-                });
-                // Standard scale VORs
-                const vorVals = [qb_vor, rb_vor, wr_vor, te_vor, k_vor, flex_vor];
-                const vorScaled = vor_cols.map((col, i) => {
-                    const {mean, std} = vorStats[col];
-                    return standardScale(vorVals[i], mean, std);
-                });
-
-                const featureVector = [...boundedScaled, ...vorScaled];
-
-                // Predict best position using the enhanced model with filtering
-                recommendedPosition = await predictBestPositionWithFilter(featureVector, draftState, settings);
-                recommendedPlayer = getBestPlayerAtPosition(recommendedPosition, scoringType);
-                reasonText = " (model prediction)";
-            }
-
-            // Display the recommendation with enhanced styling
-            const recDiv = recBox.querySelector('#assist-recommendation');
-            if (recommendedPlayer) {
-                const projectedPoints = getProjectedPoints(recommendedPlayer, scoringType).toFixed(1);
-                recDiv.innerHTML = `
-                    <div class="recommendation-result success">
-                        <div class="result-header">
-                            <i class="fas fa-lightbulb"></i>
-                            <h4>Recommendation Ready</h4>
-                        </div>
-                        <div class="result-content">
-                            <div class="position-recommendation">
-                                <span class="label">Recommended Position:</span>
-                                <span class="value">${recommendedPosition}</span>
-                                <span class="reason">${reasonText}</span>
-                            </div>
-                            <div class="player-recommendation">
-                                <span class="label">Best Available Player:</span>
-                                <span class="value player-name">${recommendedPlayer.name}</span>
-                            </div>
-                            <div class="points-projection">
-                                <span class="label">Projected Points:</span>
-                                <span class="value points">${projectedPoints}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                recDiv.innerHTML = `
-                    <div class="recommendation-result warning">
-                        <div class="result-header">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <h4>No Players Available</h4>
-                        </div>
-                        <div class="result-content">
-                            <div class="position-recommendation">
-                                <span class="label">Recommended Position:</span>
-                                <span class="value">${recommendedPosition}</span>
-                                <span class="reason">${reasonText}</span>
-                            </div>
-                            <p>No available players found at this position.</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Animate the recommendation
-            recDiv.style.opacity = '0';
-            recDiv.style.transform = 'translateY(10px)';
-            setTimeout(() => {
-                recDiv.style.transition = 'all 0.3s ease-out';
-                recDiv.style.opacity = '1';
-                recDiv.style.transform = 'translateY(0)';
-            }, 100);
-
-        } catch (error) {
-            console.error('Error getting recommendation:', error);
-            const recDiv = recBox.querySelector('#assist-recommendation');
-            recDiv.innerHTML = `
-                <div class="recommendation-result error">
-                    <div class="result-header">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <h4>Error</h4>
-                    </div>
-                    <div class="result-content">
-                        <p>Unable to get recommendation. Please try again.</p>
-                    </div>
+    return `
+        <div class="team-box" data-team="${teamNumber}">
+            <div class="team-header">
+                <h3 contenteditable="true" data-original="Team ${teamNumber}">Team ${teamNumber}</h3>
+                <div class="team-controls">
+                    <button class="pin-btn" title="Pin team" data-team="${teamNumber}">
+                        <i class="fas fa-thumbtack"></i>
+                    </button>
                 </div>
-            `;
-        } finally {
-            // Reset button state
-            this.classList.remove('loading');
-            this.innerHTML = '<i class="fas fa-brain"></i><span>Get Recommendation</span>';
+            </div>
+            <div class="team-roster">
+                ${createPositionInputsHTML(teamNumber, settings)}
+            </div>
+        </div>
+    `;
+}
+
+function createPositionInputsHTML(teamNumber, settings) {
+    let html = '';
+
+    // QB positions
+    for (let i = 1; i <= settings.numQBs; i++) {
+        html += createPositionSelectHTML(teamNumber, 'QB', i);
+    }
+
+    // RB positions
+    for (let i = 1; i <= settings.numRBs; i++) {
+        html += createPositionSelectHTML(teamNumber, 'RB', i);
+    }
+
+    // WR positions
+    for (let i = 1; i <= settings.numWRs; i++) {
+        html += createPositionSelectHTML(teamNumber, 'WR', i);
+    }
+
+    // TE positions
+    for (let i = 1; i <= settings.numTEs; i++) {
+        html += createPositionSelectHTML(teamNumber, 'TE', i);
+    }
+
+    // FLEX positions
+    for (let i = 1; i <= settings.numFlex; i++) {
+        html += createPositionSelectHTML(teamNumber, 'FLEX', i);
+    }
+
+    // K positions
+    for (let i = 1; i <= settings.numKs; i++) {
+        html += createPositionSelectHTML(teamNumber, 'K', i);
+    }
+
+    // DST positions
+    for (let i = 1; i <= settings.numDST; i++) {
+        html += createPositionSelectHTML(teamNumber, 'DST', i);
+    }
+
+    // Bench positions
+    for (let i = 1; i <= settings.numBench; i++) {
+        html += createPositionSelectHTML(teamNumber, 'Bench', i);
+    }
+
+    return html;
+}
+
+function createPositionSelectHTML(teamNumber, position, slotNumber) {
+    return `
+        <div class="position-slot">
+            <label for="team${teamNumber}-${position}${slotNumber}">${position}${slotNumber}:</label>
+            <select name="team${teamNumber}-${position}${slotNumber}" id="team${teamNumber}-${position}${slotNumber}">
+                <option value="">Select Player</option>
+            </select>
+        </div>
+    `;
+}
+
+function initTeamBoxes(numTeams) {
+    // Add expand/collapse functionality
+    document.querySelectorAll('.expand-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const teamBox = this.closest('.team-box');
+            teamBox.classList.toggle('expanded');
+
+            const icon = this.querySelector('i');
+            if (teamBox.classList.contains('expanded')) {
+                icon.className = 'fas fa-compress';
+                this.title = 'Collapse team';
+            } else {
+                icon.className = 'fas fa-expand';
+                this.title = 'Expand team';
+            }
+        });
+    });
+
+    // Populate dropdowns with player names
+    populateAllDropdowns();
+}
+
+async function populateAllDropdowns() {
+    try {
+        // Wait for player names to be loaded if not already
+        if (Object.keys(playerNamesByPos).length === 0) {
+            await preloadAllPlayerNames();
         }
+
+        // Populate each dropdown
+        document.querySelectorAll('select').forEach(select => {
+            const name = select.name;
+            if (!name || !name.includes('-')) return;
+
+            const position = name.split('-')[1].replace(/\d+$/, ''); // Remove trailing numbers
+            const players = playerNamesByPos[position] || [];
+
+            // Clear existing options except the first one
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+
+            // Add player options
+            players.forEach(playerName => {
+                const option = document.createElement('option');
+                option.value = playerName;
+                option.textContent = playerName;
+                select.appendChild(option);
+            });
+        });
+
+    } catch (error) {
+        console.error('Error populating dropdowns:', error);
+    }
+}
+
+// Draft State Calculation
+function getCurrentDraftState(teamNumber, round, pickNo) {
+    const settings = getDraftSettings();
+    const scoringType = getScoringType();
+
+    // Calculate current needs for the specified team
+    const teamNeeds = calculateTeamNeeds(teamNumber, settings);
+
+    // Calculate needs for other teams
+    const otherTeamsNeeds = calculateOtherTeamsNeeds(teamNumber, settings);
+
+    // Calculate available players
+    const availablePlayers = getAvailablePlayersSync();
+
+    return {
+        pick_no: pickNo,
+        round: round,
+        scoring_type: scoringType,
+        qb_need: teamNeeds.qb,
+        rb_need: teamNeeds.rb,
+        wr_need: teamNeeds.wr,
+        te_need: teamNeeds.te,
+        k_need: teamNeeds.k,
+        dst_need: teamNeeds.dst,
+        flex_need: teamNeeds.flex,
+        other_qb_need: otherTeamsNeeds.qb,
+        other_rb_need: otherTeamsNeeds.rb,
+        other_wr_need: otherTeamsNeeds.wr,
+        other_te_need: otherTeamsNeeds.te,
+        other_k_need: otherTeamsNeeds.k,
+        other_dst_need: otherTeamsNeeds.dst,
+        other_flex_need: otherTeamsNeeds.flex,
+        qb_available: availablePlayers.qb.length,
+        rb_available: availablePlayers.rb.length,
+        wr_available: availablePlayers.wr.length,
+        te_available: availablePlayers.te.length,
+        k_available: availablePlayers.k.length,
+        dst_available: availablePlayers.dst.length,
+        flex_available: availablePlayers.flex.length
     };
+}
+
+function calculateTeamNeeds(teamNumber, settings) {
+    const needs = {
+        qb: settings.numQBs,
+        rb: settings.numRBs,
+        wr: settings.numWRs,
+        te: settings.numTEs,
+        k: settings.numKs,
+        dst: settings.numDST,
+        flex: settings.numFlex
+    };
+
+    // Count filled positions for this team
+    document.querySelectorAll(`select[name^="team${teamNumber}-"]`).forEach(select => {
+        if (select.value) {
+            const posMatch = select.name.match(/-(QB|RB|WR|TE|K|DST|FLEX)/);
+            if (posMatch) {
+                const pos = posMatch[1].toLowerCase();
+                if (needs[pos] > 0) {
+                    needs[pos]--;
+                }
+            }
+        }
+    });
+
+    return needs;
+}
+
+function calculateOtherTeamsNeeds(excludeTeam, settings) {
+    const totalNeeds = {
+        qb: 0,
+        rb: 0,
+        wr: 0,
+        te: 0,
+        k: 0,
+        dst: 0,
+        flex: 0
+    };
+
+    // Calculate needs for all other teams
+    for (let team = 1; team <= settings.numTeams; team++) {
+        if (team === excludeTeam) continue;
+
+        const teamNeeds = calculateTeamNeeds(team, settings);
+        Object.keys(totalNeeds).forEach(pos => {
+            totalNeeds[pos] += teamNeeds[pos];
+        });
+    }
+
+    return totalNeeds;
+}
+
+// Fix the stepper inputs initialization function name
+function initStepperInputs() {
+    initStepperControls();
 }
