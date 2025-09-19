@@ -435,6 +435,7 @@ h3 {
 .stepper-container {
     display: flex;
     align-items: center;
+    justify-content: center; /* Center the contents horizontally */
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -477,7 +478,7 @@ h3 {
     height: 36px;
     border: none;
     background: transparent;
-    text-align: center;
+    text-align: center; /* Center the text */
     font-family: var(--font-mono);
     font-size: 14px;
     font-weight: 500;
@@ -1368,3 +1369,105 @@ h3 {
 .player-rankings-float-button i {
     font-size: 1.25rem;
 }
+
+/* Draft Board Float Button - Positioned on the left side of the screen */
+.draft-board-float-button {
+    position: fixed;
+    left: 20px;
+    bottom: 30px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    color: var(--color-text-primary);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+    transition: all var(--transition-medium);
+}
+
+.draft-board-float-button:hover {
+    background: var(--color-accent);
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.draft-board-float-button i {
+    font-size: 1.25rem;
+}
+
+/* Draft Board Sidebar */
+.draft-board-sidebar {
+    position: fixed;
+    top: 0;
+    left: -500px; /* Start offscreen to the left */
+    width: 500px;
+    height: 100vh;
+    background: var(--color-bg-card);
+    border-right: 1px solid var(--color-border);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    transition: left var(--transition-medium);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.draft-board-sidebar.open {
+    left: 0;
+}
+
+/* Draft Board Table Styling */
+.draft-board-container {
+    overflow-y: auto;
+    padding: 1rem;
+    flex: 1;
+}
+
+.draft-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-bg-card);
+}
+
+.draft-table th {
+    background: var(--color-bg);
+    padding: 1rem 0.75rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.draft-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.875rem;
+}
+
+.draft-table tr {
+    transition: background-color var(--transition-fast);
+}
+
+.draft-table tbody tr:hover {
+    background: var(--color-bg);
+}
+
+/* Highlight different rounds with subtle alternating colors */
+.draft-table tr[data-round="odd"] {
+    background-color: var(--color-bg);
+}
+
+.draft-table tr[data-round="even"] {
+    background-color: var(--color-bg-card);
+}
+

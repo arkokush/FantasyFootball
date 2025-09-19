@@ -20,9 +20,11 @@ const playerNamesByPos = {};
 
 async function fetchCsvRows(file) {
     try {
-        // Try different possible paths to work both locally and on GitHub Pages
+        // Enhanced path handling for GitHub Pages
+        const baseUrl = window.location.hostname === 'arkokush.github.io' ? '/FantasyFootball' : '';
         const possiblePaths = [
-            `data/2025/${file}`,
+            `${baseUrl}/docs/data/2025/${file}`,
+            `${baseUrl}/data/2025/${file}`,
             `./data/2025/${file}`,
             `/FantasyFootball/docs/data/2025/${file}`, // GitHub Pages path
             `/docs/data/2025/${file}`
@@ -30,21 +32,26 @@ async function fetchCsvRows(file) {
 
         let response;
         let lastError;
+        let successPath;
 
         for (const path of possiblePaths) {
             try {
+                console.log(`Trying to fetch from path: ${path}`);
                 response = await fetch(path);
                 if (response.ok) {
+                    successPath = path;
+                    console.log(`Successfully fetched from: ${path}`);
                     break;
                 }
             } catch (error) {
                 lastError = error;
+                console.warn(`Failed to fetch from path: ${path}`, error);
                 continue;
             }
         }
 
         if (!response || !response.ok) {
-            console.warn(`Could not fetch ${file} from any path. Last error:`, lastError);
+            console.error(`Could not fetch ${file} from any path. Last error:`, lastError);
             return [];
         }
 
@@ -214,54 +221,26 @@ document.body.addEventListener('change', function(e) {
 
 // --- Draft Board Logic ---
 function updateDraftBoard() {
-    // Check if draft board exists, create it if not
-    let draftBoard = document.getElementById('draft-board');
-    if (!draftBoard) {
-        // Create draft board container
-        const draftAssistantContainer = document.getElementById('draft-assistant-container');
-        draftBoard = document.createElement('div');
-        draftBoard.id = 'draft-board';
-        draftBoard.className = 'draft-board-section';
-        draftBoard.innerHTML = `
-            <h3><i class="fas fa-clipboard-list"></i> Draft Board</h3>
-            <div class="draft-board-container">
-                <table class="draft-table">
-                    <thead>
-                        <tr>
-                            <th>Round</th>
-                            <th>Pick</th>
-                            <th>Team</th>
-                            <th>Player</th>
-                            <th>Position</th>
-                        </tr>
-                    </thead>
-                    <tbody id="draft-board-body">
-                    </tbody>
-                </table>
-            </div>
-        `;
-
-        // Insert draft board after recommendation box
-        const recBox = document.getElementById('recommendation-box');
-        if (recBox && recBox.nextSibling) {
-            draftAssistantContainer.insertBefore(draftBoard, recBox.nextSibling);
-        } else {
-            draftAssistantContainer.appendChild(draftBoard);
-        }
-
-        // Add animation
-        draftBoard.style.opacity = '0';
-        draftBoard.style.transform = 'translateY(20px)';
-        setTimeout(() => {
-            draftBoard.style.transition = 'all 0.5s ease-out';
-            draftBoard.style.opacity = '1';
-            draftBoard.style.transform = 'translateY(0)';
-        }, 200);
-    }
-
-    // Update the draft board with current selections
+    // Update the draft board sidebar if open
     const draftBoardBody = document.getElementById('draft-board-body');
+    if (!draftBoardBody) return;
+
+    // Clear any existing content
     draftBoardBody.innerHTML = '';
+
+    // If no players are drafted, show the empty state
+    if (draftedPlayersWithTeam.size === 0) {
+        draftBoardBody.innerHTML = `
+            <tr class="table-loading">
+                <td colspan="5">
+                    <div class="loading-spinner-small">
+                        <i class="fas fa-clipboard-list"></i> No picks yet
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
     // Convert draftedPlayersWithTeam map to array of drafted players
     const draftedPlayers = [];
@@ -301,6 +280,9 @@ function updateDraftBoard() {
     // Add players to draft board
     draftedPlayers.forEach(player => {
         const row = document.createElement('tr');
+
+        // Set even/odd round data for styling
+        row.dataset.round = player.round % 2 === 0 ? 'even' : 'odd';
 
         // Get team name
         let teamName = `Team ${player.teamNumber}`;
@@ -761,7 +743,7 @@ function createRecommendationBox(numTeams, teamSelectRef) {
             if (isSecondToLastRound(round, settings)) {
                 recommendedPosition = 'K';
                 recommendedPlayer = getBestPlayerAtPosition('K', scoringType);
-                reasonText = " (2nd to last round - drafting best kicker)";
+                reasonText = " (2th to last round - drafting best kicker)";
             }
             // Rule 2: If it's the last round, always recommend best DST
             else if (isLastRound(round, settings)) {
@@ -1112,6 +1094,50 @@ function initPlayerRankingsSidebar() {
     });
 }
 
+// Draft Board Sidebar Functionality
+function initDraftBoardSidebar() {
+    const toggleBtn = document.getElementById('draft-board-toggle');
+    const sidebar = document.getElementById('draft-board-sidebar');
+    const closeBtn = document.getElementById('close-draft-board');
+
+    if (!toggleBtn || !sidebar || !closeBtn) return;
+
+    // Toggle sidebar open/close
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        toggleBtn.classList.toggle('active');
+
+        // Update draft board when opened
+        if (sidebar.classList.contains('open')) {
+            updateDraftBoard();
+        }
+    });
+
+    // Close sidebar
+    closeBtn.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        toggleBtn.classList.remove('active');
+    });
+
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (sidebar.classList.contains('open') &&
+            !sidebar.contains(e.target) &&
+            !toggleBtn.contains(e.target)) {
+            sidebar.classList.remove('open');
+            toggleBtn.classList.remove('active');
+        }
+    });
+
+    // ESC key to close sidebar
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            toggleBtn.classList.remove('active');
+        }
+    });
+}
+
 // Team Pinning Functionality
 const pinnedTeams = new Set();
 
@@ -1258,6 +1284,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Initialize new sidebar and team functionality
         initPlayerRankingsSidebar();
+        initDraftBoardSidebar();
         initTeamPinning();
         initTeamNameEditing();
 
@@ -1370,7 +1397,7 @@ async function updatePlayerRankings() {
         // Show loading state
         tableBody.innerHTML = `
             <tr class="table-loading">
-                <td colspan="8">
+                <td colspan="7">
                     <div class="loading-spinner-small">
                         <i class="fas fa-football-ball fa-spin"></i> Loading players...
                     </div>
@@ -1450,9 +1477,8 @@ async function updatePlayerRankings() {
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td class="player-name">${player.name}</td>
-                <td class="position">${player.position || 'N/A'}</td>
-                <td class="team">${player.team || 'N/A'}</td>
-                <td class="bye">${player.bye || 'N/A'}</td>
+                <td class="position">${player.position || '-'}</td>
+                <td class="team">${player.team || '-'}</td>
                 <td class="projected">${projectedPoints.toFixed(1)}</td>
                 <td class="vor">${(projectedPoints - 10).toFixed(1)}</td>
                 <td class="draft-status">Available</td>
@@ -1468,7 +1494,7 @@ async function updatePlayerRankings() {
         console.error('Error updating player rankings:', error);
         tableBody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; color: var(--color-text-muted);">
+                <td colspan="7" style="text-align: center; color: var(--color-text-muted);">
                     Error loading player data
                 </td>
             </tr>
